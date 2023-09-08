@@ -4,11 +4,12 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <sys/mman.h>
-// #include <sys/types.h>
-#include <fmt/core.h>
 #include <cstring>
 #include <iostream>
 #include <unistd.h>
+#include <errno.h>
+
+#include <fmt/core.h>
 
 #include <numa.h>
 #include <numaif.h>
@@ -39,34 +40,40 @@
 #define MIMALLOC_SEGMENT_ALIGNED_SIZE ((uintptr_t) 1 << 26)
 #endif
 
-// #define MI_MAX_ARENAS         (112)       // not more than 126 (since we use 7 bits in the memid and an arena index + 1)
 
-// typedef struct {
-//   mi_arena_id_t id;                       // arena id; 0 for non-specific
-//   mi_memid_t memid;                       // memid of the memory area
-//   _Atomic(uint8_t*) start;                // the start of the memory area
-//   size_t   block_count;                   // size of the area in arena blocks (of `MI_ARENA_BLOCK_SIZE`)
-//   size_t   field_count;                   // number of bitmap fields (where `field_count * MI_BITMAP_FIELD_BITS >= block_count`)
-//   size_t   meta_size;                     // size of the arena structure itself (including its bitmaps)
-//   mi_memid_t meta_memid;                  // memid of the arena structure itself (OS or static allocation)
-//   int      numa_node;                     // associated NUMA node
-//   bool     exclusive;                     // only allow allocations if specifically for this arena  
-//   bool     is_large;                      // memory area consists of large- or huge OS pages (always committed)
-//   _Atomic(size_t) search_idx;             // optimization to start the search for free blocks
-//   _Atomic(mi_msecs_t) purge_expire;       // expiration time when blocks should be decommitted from `blocks_decommit`.  
-//   mi_bitmap_field_t* blocks_dirty;        // are the blocks potentially non-zero?
-//   mi_bitmap_field_t* blocks_committed;    // are the blocks committed? (can be NULL for memory that cannot be decommitted)
-//   mi_bitmap_field_t* blocks_purge;        // blocks that can be (reset) decommitted. (can be NULL for memory that cannot be (reset) decommitted)  
-//   mi_bitmap_field_t  blocks_inuse[1];     // in-place bitmap of in-use blocks (of size `field_count`)
-// } mi_arena_t;
+/**
+* @brief The address must be 64MB aligned (required by mimalloc).
+* One can use mmap instead of alloc + align, the latter is safer but recquires
+* to allocate more memory than needed since alignement will waste some.
+*/
+#define ALIGNED(allocator, deallocator) \
+void* allocator##_aligned(size_t size){ \
+    if ( #allocator == "std_malloc" ) { return aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size); } \
+    void* tmp = allocator(size); \
+    fmt::print("Raw pointer is at {} \n", tmp); \
+    void* aligned_ptr = std::align(MIMALLOC_SEGMENT_ALIGNED_SIZE, size, tmp, size); \
+    fmt::print("Aligned pointer is at {} \n", aligned_ptr); \
+    return aligned_ptr; \
+} \
 
-// extern mi_decl_cache_align _Atomic(mi_arena_t*) mi_arenas[MI_MAX_ARENAS];
+
+int get_node(void* ptr){
+    int numa_node[1] = {-1};
+    void* page = (void*)((size_t)ptr & ~((size_t)getpagesize()-1));
+    int err = move_pages(getpid(), 1, &page , NULL, numa_node, 0);
+    if (err == -1) {
+        fmt::print("Move page failed.\n");
+        return -1;
+    }
+    return numa_node[0];
+}
+
 
 class Mimalloc {
 public:
   /**
-   * @brief Manages a particular memory arena. Set numa_node to 0 if the node is unknown,
-   * set to -1 (or ignore) if no numa node specification is desired.
+   * @brief Manages a particular memory arena. 
+   * numa_node to 0 if no numa node, ignore if unknown.
    */
     Mimalloc(void* addr, const size_t size, const bool is_committed = false,
             const bool is_zero = true, int numa_node = -1) {
@@ -74,55 +81,48 @@ public:
         bool is_large = false;
 
         aligned_size = size;
-        // the addr must be 64MB aligned (required by mimalloc)
-        if ((reinterpret_cast<uintptr_t>(addr) % MIMALLOC_SEGMENT_ALIGNED_SIZE) != 0) {
-            aligned_address = reinterpret_cast<void*>((reinterpret_cast<uintptr_t>(addr) +
-                                MIMALLOC_SEGMENT_ALIGNED_SIZE - 1) &
-                                ~(MIMALLOC_SEGMENT_ALIGNED_SIZE - 1));
-            aligned_size = size - ((size_t) aligned_address - (size_t) addr);
-        } else {
-            aligned_address = addr;
-        }
+        aligned_address = addr;
 
-        // Try to pin the allocated memory
-        int pin_success = pin(aligned_address, aligned_size, true); // TODO : add error throw
+        // Find NUMA node if not known before 
+        if ( numa_node == -1 ) { numa_node = get_node(aligned_address); }
 
-        mi_arena_id_t arena_id;
         bool success = mi_manage_os_memory_ex(aligned_address, aligned_size, is_committed,
                                             is_large, is_zero, numa_node, true, &arena_id);
         if (!success) { // TODO : add error throw
-            fmt::print("[error] mimalloc failed to create the arena at {}\n", aligned_address);
+            fmt::print("[error] mimalloc failed to create the arena at {} \n", aligned_address);
             aligned_address = nullptr;
         }
         heap = mi_heap_new_in_arena(arena_id);
         if (heap == nullptr) { // TODO : add error throw
-            fmt::print("[error] mimalloc failed to create the heap at {}\n", aligned_address);
+            fmt::print("[error] mimalloc failed to create the heap at {} \n", aligned_address);
             aligned_address = nullptr;
         }
 
         // do not use OS memory for allocation (but only pre-allocated arena)
         mi_option_set(mi_option_limit_os_alloc, 1);
 
-        // // // get the arena, change its numa_node to the one associated to the heap
-        // const size_t arena_index = (size_t)(arena_id <= 0 ? MI_MAX_ARENAS : arena_id - 1); 
-        //                             // could use also mi_arena_id_index( arena_id ) instead but no access to the API
-        // mi_arena_t* arena = mi_atomic_load_ptr_acquire(mi_arena_t, &mi_arenas[arena_index]);
-        // if ( numa_node == 0 ) { arena->numa_node = _mi_os_numa_node_get(&(heap->tld->os)); }
+        // Pin the allocated memory
+        int pin_success = pin(true); // TODO : add error throw
     }
 
     // leave it undeleted to keep allocated blocks
-    ~Mimalloc() {}
+    ~Mimalloc() { 
+        int success = pin(false);
+    }
 
     size_t AlignedSize() const { return aligned_size; }
 
     void* AlignedAddress() const { return aligned_address; }
 
     void* allocate(const size_t bytes, const size_t alignment = 0) {
+        void* rtn = nullptr;
         if (unlikely(alignment)) {
-            return mi_heap_malloc_aligned(heap, bytes, alignment);
+            rtn = mi_heap_malloc_aligned(heap, bytes, alignment);
         } else {
-            return mi_heap_malloc(heap, bytes);
+            rtn = mi_heap_malloc(heap, bytes);
         }
+        fmt::print("memory allocated at {}\n", rtn);
+        return rtn;
     }
 
     void* reallocate(void* pointer, size_t size) {
@@ -139,50 +139,31 @@ public:
     /**
     * @brief Set bool pin to true to pin the memory, false to unpin it
     */ 
-    int pin(void* pointer, size_t bytes, bool pin){ 
+    int pin(bool pin){ 
         int success;
         std::string str;
         if ( pin ) { 
-            success = mlock(&pointer, bytes); 
+            success = mlock(&aligned_address, aligned_size); 
             str = "pin";
         }
         else { 
-            success = munlock(&pointer, bytes); 
+            success = munlock(&aligned_address, aligned_size); 
             str = "unpin";
         }
         if ( success != 0) { 
-            fmt::print("[error] mimalloc failed to {} the allocated memory at {}\n", str, aligned_address);
+            fmt::print("[error] mimalloc failed to {} the allocated memory at {} : ", str, aligned_address);
+            if        (errno == EAGAIN) {
+                fmt::print("EAGAIN. \n (Some or all of the specified address range could not be locked.) \n");
+            } else if (errno == EINVAL) {
+                fmt::print("EINVAL. \n (The result of the addition addr+len was less than addr. addr = {} and len = {})\n", aligned_address, aligned_size);
+            } else if (errno == ENOMEM) {
+                fmt::print("ENOMEM. \n (Some of the specified address range does not correspond to mapped pages in the address space of the process.) \n");
+            } else if (errno == EPERM ) {
+                fmt::print("EPERM. \n (The caller was not privileged.) \n");
+            }
         }
         return success;
     }
-
-#if ENABLE_DEVICE
-
-    void* allockate(const size_t bytes, const size_t alignment = 0) {
-        void* rtn = allocate(bytes, alignment);
-        int success = pin(rtn, bytes, true);
-        if ( success != 0) { deallocate(rtn); return nullptr;} 
-        else { return rtn; }
-    }
-
-    void* reallockate(void* pointer, size_t size) {
-        size_t bytes = sizeof(pointer);
-        int success = pin(pointer, bytes, false);
-        if ( success != 0) { return nullptr;}
-        void* rtn = mi_heap_realloc(heap, pointer, size);
-        success = pin(pointer, size, true);
-        if ( success != 0 ) { return nullptr; }
-        else { return rtn; }
-    }
-
-    void deallockate(void* pointer, size_t size = 0) {
-        size_t bytes = sizeof(pointer);
-        int success = pin(pointer, bytes, false);
-        if ( success != 0) { return;} 
-        else { deallocate(pointer, bytes); return; } 
-    }
-
-#endif
 
     size_t getAllocatedSize(void* pointer) { return mi_usable_size(pointer); }
 
@@ -191,16 +172,5 @@ private:
     size_t aligned_size = 0;
     mi_arena_id_t arena_id{};
     mi_heap_t* heap = nullptr;
+    mi_stats_t stats;
 };
-
-
-int get_node(void* ptr){
-    int numa_node[1] = {-1};
-    void* page = (void*)((size_t)ptr & ~((size_t)getpagesize()-1));
-    int err = move_pages(getpid(), 1, &page , NULL, numa_node, 0);
-    if (err == -1) {
-        fmt::print("move page failed.\n");
-        return -1;
-    }
-    return numa_node[0];
-}
