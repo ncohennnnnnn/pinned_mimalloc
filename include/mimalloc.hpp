@@ -43,18 +43,23 @@
 
 /**
 * @brief The address must be 64MB aligned (required by mimalloc).
-* One can use mmap instead of alloc + align, the latter is safer but recquires
-* to allocate more memory than needed since alignement will waste some.
+* The free(void* ...) is overloaded by free(Mimalloc ...) to make sure
+* the memory is unpinned before freeing it.
 */
-#define ALIGNED(allocator, deallocator) \
+#define ALLOC(allocator, deallocator) \
 void* allocator##_aligned(size_t size){ \
     if ( #allocator == "std_malloc" ) { return aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size); } \
     void* tmp = allocator(size); \
-    fmt::print("Raw pointer is at {} \n", tmp); \
+    fmt::print("{} : Raw pointer. \n", tmp); \
     void* aligned_ptr = std::align(MIMALLOC_SEGMENT_ALIGNED_SIZE, size, tmp, size); \
-    fmt::print("Aligned pointer is at {} \n", aligned_ptr); \
+    fmt::print("{} : Aligned pointer. \n", aligned_ptr); \
     return aligned_ptr; \
 } \
+void free(Mimalloc mim){ \
+    mim.unpin(); \
+    deallocator(mim.AlignedAddress()); \
+} \
+
 
 
 int get_node(void* ptr){
@@ -62,7 +67,7 @@ int get_node(void* ptr){
     void* page = (void*)((size_t)ptr & ~((size_t)getpagesize()-1));
     int err = move_pages(getpid(), 1, &page , NULL, numa_node, 0);
     if (err == -1) {
-        fmt::print("Move page failed.\n");
+        fmt::print("Move page failed. \n");
         return -1;
     }
     return numa_node[0];
@@ -89,12 +94,12 @@ public:
         bool success = mi_manage_os_memory_ex(aligned_address, aligned_size, is_committed,
                                             is_large, is_zero, numa_node, true, &arena_id);
         if (!success) { // TODO : add error throw
-            fmt::print("[error] mimalloc failed to create the arena at {} \n", aligned_address);
+            fmt::print("{} : [error] Mimalloc failed to create the arena. \n", aligned_address);
             aligned_address = nullptr;
         }
         heap = mi_heap_new_in_arena(arena_id);
         if (heap == nullptr) { // TODO : add error throw
-            fmt::print("[error] mimalloc failed to create the heap at {} \n", aligned_address);
+            fmt::print("{} : [error] Mimalloc failed to create the heap. \n", aligned_address);
             aligned_address = nullptr;
         }
 
@@ -102,13 +107,11 @@ public:
         mi_option_set(mi_option_limit_os_alloc, 1);
 
         // Pin the allocated memory
-        int pin_success = pin(true); // TODO : add error throw
+        pin();
     }
 
     // leave it undeleted to keep allocated blocks
-    ~Mimalloc() { 
-        int success = pin(false);
-    }
+    ~Mimalloc() {}
 
     size_t AlignedSize() const { return aligned_size; }
 
@@ -121,7 +124,7 @@ public:
         } else {
             rtn = mi_heap_malloc(heap, bytes);
         }
-        fmt::print("memory allocated at {}\n", rtn);
+        fmt::print("{} : Memory allocated. \n", rtn);
         return rtn;
     }
 
@@ -139,7 +142,7 @@ public:
     /**
     * @brief Set bool pin to true to pin the memory, false to unpin it
     */ 
-    int pin(bool pin){ 
+    int pin_or_unpin(bool pin){  // TODO : add error throw
         int success;
         std::string str;
         if ( pin ) { 
@@ -151,7 +154,7 @@ public:
             str = "unpin";
         }
         if ( success != 0) { 
-            fmt::print("[error] mimalloc failed to {} the allocated memory at {} : ", str, aligned_address);
+            fmt::print("{} : [error] Mimalloc failed to {} the allocated memory :  ", aligned_address, str);
             if        (errno == EAGAIN) {
                 fmt::print("EAGAIN. \n (Some or all of the specified address range could not be locked.) \n");
             } else if (errno == EINVAL) {
@@ -161,11 +164,15 @@ public:
             } else if (errno == EPERM ) {
                 fmt::print("EPERM. \n (The caller was not privileged.) \n");
             }
-        } else {
-            fmt::print("memory {}ned at {} \n", str, aligned_address);
-        }
+        } 
+        else { fmt::print("{} : Memory {}ned. \n", aligned_address, str); } 
+
         return success;
     }
+
+    void pin(){ int success = pin_or_unpin(true); }
+
+    void unpin(){ int success = pin_or_unpin(false); }
 
     size_t getAllocatedSize(void* pointer) { return mi_usable_size(pointer); }
 
