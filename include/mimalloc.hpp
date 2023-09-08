@@ -143,11 +143,11 @@ public:
         int success;
         std::string str;
         if ( pin ) { 
-            success = mlock(&aligned_address, aligned_size); 
+            success = mlock(aligned_address, aligned_size); 
             str = "pin";
         }
         else { 
-            success = munlock(&aligned_address, aligned_size); 
+            success = munlock(aligned_address, aligned_size); 
             str = "unpin";
         }
         if ( success != 0) { 
@@ -161,6 +161,8 @@ public:
             } else if (errno == EPERM ) {
                 fmt::print("EPERM. \n (The caller was not privileged.) \n");
             }
+        } else {
+            fmt::print("memory {}ned at {} \n", str, aligned_address);
         }
         return success;
     }
