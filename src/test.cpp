@@ -1,10 +1,5 @@
 #include <config.hpp>
-#include <stdio.h>
-#include <assert.h>
 
-#include <fmt/core.h>
-
-#include <numa.h>
 #include <mimalloc.h>
 #include <mimalloc.hpp>
 

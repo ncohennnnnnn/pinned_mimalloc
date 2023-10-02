@@ -40,19 +40,18 @@
 #define MIMALLOC_SEGMENT_ALIGNED_SIZE ((uintptr_t) 1 << 26)
 #endif
 
-
 /**
 * @brief The address must be 64MB aligned (required by mimalloc).
-* The free(void* ...) is overloaded by free(Mimalloc ...) to make sure
-* the memory is unpinned before freeing it.
+* The free(void* ...) is overloaded by free(Mimalloc ...) to 
+* make sure the memory is unpinned before freeing it.
 */
 #define ALLOC(allocator, deallocator) \
-void* allocator##_aligned(size_t size){ \
+void* allocator##_aligned(std::size_t size){ \
     if ( #allocator == "std_malloc" ) { return aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size); } \
     void* tmp = allocator(size); \
-    fmt::print("{} : Raw pointer. \n", tmp); \
+    fmt::print("{} : Raw ptr. \n", tmp); \
     void* aligned_ptr = std::align(MIMALLOC_SEGMENT_ALIGNED_SIZE, size, tmp, size); \
-    fmt::print("{} : Aligned pointer. \n", aligned_ptr); \
+    fmt::print("{} : Aligned ptr. \n", aligned_ptr); \
     return aligned_ptr; \
 } \
 void free(Mimalloc mim){ \
@@ -60,125 +59,54 @@ void free(Mimalloc mim){ \
     deallocator(mim.AlignedAddress()); \
 } \
 
-
-
-int get_node(void* ptr){
-    int numa_node[1] = {-1};
-    void* page = (void*)((size_t)ptr & ~((size_t)getpagesize()-1));
-    int err = move_pages(getpid(), 1, &page , NULL, numa_node, 0);
-    if (err == -1) {
-        fmt::print("Move page failed. \n");
-        return -1;
-    }
-    return numa_node[0];
-}
-
+int get_node(void* ptr);
 
 class Mimalloc {
 public:
   /**
    * @brief Manages a particular memory arena. 
-   * numa_node to 0 if no numa node, ignore if unknown.
+   * Set numa_node to 0 if single numa node, ignore if unknown.
    */
-    Mimalloc(void* addr, const size_t size, const bool is_committed = false,
-            const bool is_zero = true, int numa_node = -1) {
-        // doesn't consist of large OS pages
-        bool is_large = false;
+    Mimalloc(void* addr, const std::size_t size, const bool is_committed = false,
+            const bool is_zero = true, int numa_node = -1);
 
-        aligned_size = size;
-        aligned_address = addr;
-
-        // Find NUMA node if not known before 
-        if ( numa_node == -1 ) { numa_node = get_node(aligned_address); }
-
-        bool success = mi_manage_os_memory_ex(aligned_address, aligned_size, is_committed,
-                                            is_large, is_zero, numa_node, true, &arena_id);
-        if (!success) { // TODO : add error throw
-            fmt::print("{} : [error] Mimalloc failed to create the arena. \n", aligned_address);
-            aligned_address = nullptr;
-        }
-        heap = mi_heap_new_in_arena(arena_id);
-        if (heap == nullptr) { // TODO : add error throw
-            fmt::print("{} : [error] Mimalloc failed to create the heap. \n", aligned_address);
-            aligned_address = nullptr;
-        }
-
-        // do not use OS memory for allocation (but only pre-allocated arena)
-        mi_option_set(mi_option_limit_os_alloc, 1);
-
-        // Pin the allocated memory
-        pin();
-    }
-
-    // leave it undeleted to keep allocated blocks
+    // Leave it undeleted to keep allocated blocks
     ~Mimalloc() {}
 
-    size_t AlignedSize() const { return aligned_size; }
+    std::size_t AlignedSize() const { return aligned_size; }
 
     void* AlignedAddress() const { return aligned_address; }
 
-    void* allocate(const size_t bytes, const size_t alignment = 0) {
-        void* rtn = nullptr;
-        if (unlikely(alignment)) {
-            rtn = mi_heap_malloc_aligned(heap, bytes, alignment);
-        } else {
-            rtn = mi_heap_malloc(heap, bytes);
-        }
-        fmt::print("{} : Memory allocated. \n", rtn);
-        return rtn;
-    }
+    void* allocate(const std::size_t bytes, const std::size_t alignment = 0);
 
-    void* reallocate(void* pointer, size_t size) {
-        return mi_heap_realloc(heap, pointer, size);
-    }
+    void* reallocate(void* ptr, std::size_t size);
 
-    void deallocate(void* pointer, size_t size = 0) {
-        if (likely(pointer)) {
-            if (unlikely(size)) { mi_free_size(pointer, size); }
-            else { mi_free(pointer); }
-        }
-    }
+    void deallocate(void* ptr, std::size_t size = 0);
+
+#if PMIMALLOC_ENABLE_DEVICE
+
+    void* device_allocate(std::size_t size);
+
+    // void* device_reallocate(void* ptr, std::size_t size);
+
+    void device_deallocate(void* ptr) noexcept;
+
+#endif
 
     /**
-    * @brief Set bool pin to true to pin the memory, false to unpin it
+    * @brief Set bool pin to true to pin the memory, false to unpin it.
     */ 
-    int pin_or_unpin(bool pin){  // TODO : add error throw
-        int success;
-        std::string str;
-        if ( pin ) { 
-            success = mlock(aligned_address, aligned_size); 
-            str = "pin";
-        }
-        else { 
-            success = munlock(aligned_address, aligned_size); 
-            str = "unpin";
-        }
-        if ( success != 0) { 
-            fmt::print("{} : [error] Mimalloc failed to {} the allocated memory :  ", aligned_address, str);
-            if        (errno == EAGAIN) {
-                fmt::print("EAGAIN. \n (Some or all of the specified address range could not be locked.) \n");
-            } else if (errno == EINVAL) {
-                fmt::print("EINVAL. \n (The result of the addition addr+len was less than addr. addr = {} and len = {})\n", aligned_address, aligned_size);
-            } else if (errno == ENOMEM) {
-                fmt::print("ENOMEM. \n (Some of the specified address range does not correspond to mapped pages in the address space of the process.) \n");
-            } else if (errno == EPERM ) {
-                fmt::print("EPERM. \n (The caller was not privileged.) \n");
-            }
-        } 
-        else { fmt::print("{} : Memory {}ned. \n", aligned_address, str); } 
-
-        return success;
-    }
+    int pin_or_unpin(bool pin);
 
     void pin(){ int success = pin_or_unpin(true); }
 
     void unpin(){ int success = pin_or_unpin(false); }
 
-    size_t getAllocatedSize(void* pointer) { return mi_usable_size(pointer); }
+    std::size_t getAllocatedSize(void* ptr) { return mi_usable_size(ptr); }
 
 private:
     void* aligned_address = nullptr;
-    size_t aligned_size = 0;
+    std::size_t aligned_size = 0;
     mi_arena_id_t arena_id{};
     mi_heap_t* heap = nullptr;
     mi_stats_t stats;

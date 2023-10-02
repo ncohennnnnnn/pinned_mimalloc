@@ -22,14 +22,28 @@ enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 
 # ------------------------------------------------------------------------------
-# Set the extra heap size, device option
+# Set PIC
+# ------------------------------------------------------------------------------
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# ------------------------------------------------------------------------------
+# Set the external heap size, device and logging option
 # ------------------------------------------------------------------------------
 set( EXT_HEAP_SZ_EXP 25 CACHE STRING "Size of the extra mimalloc heap : 1 << X with 24 < X < 31" )
 if (${EXT_HEAP_SZ_EXP} LESS 25 OR ${EXT_HEAP_SZ_EXP} GREATER 31)
     message(FATAL_ERROR "Invalid value for EXT_HEAP_SZ_EXP. Value must be within the range [25,31]")
 endif()
 
-option( ENABLE_DEVICE OFF)
+option( PMIMALLOC_ENABLE_DEVICE OFF)
+option( PMIMALLOC_ENABLE_LOGGING OFF)
+
+# ------------------------------------------------------------------------------
+# Create config file
+# ------------------------------------------------------------------------------
+configure_file(
+    ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in 
+    ${PROJECT_SOURCE_DIR}/include/config.hpp
+)
 
 # ------------------------------------------------------------------------------
 # Cmake module path for find_package
@@ -37,8 +51,7 @@ option( ENABLE_DEVICE OFF)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # ------------------------------------------------------------------------------
-# Setup Output directories (all binaries in bin/ change libs to lib/ if you
-# want)
+# Setup Output directories
 # ------------------------------------------------------------------------------
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
 ${PROJECT_BINARY_DIR}/bin
@@ -53,33 +66,63 @@ ${PROJECT_BINARY_DIR}/bin
 CACHE PATH "Single Directory for all static libraries."
 )
 
-# # Activating PIC
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-# Create config file
-configure_file(
-    ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in ${PROJECT_SOURCE_DIR}/include/config.hpp
-)
-
-# Finding fmt
+# ------------------------------------------------------------------------------
+# Finding libraries
+# ------------------------------------------------------------------------------
 find_package(fmt REQUIRED)
 message(STATUS "Found fmt: ${FMT_FOUND}")
 
-# # Finding mimalloc
-# find_package(mimalloc REQUIRED)
-# message(STATUS "Found mimalloc: ${MIMALLOC_FOUND}")
-
-# Finding numactl
 find_package(NUMA REQUIRED)
 message(STATUS "Found NUMA: ${NUMA_FOUND}")
 
-# Add the executable target
-add_executable( pinned_mimalloc src/test.cpp )
+# ------------------------------------------------------------------------------
+# Building executable target
+# ------------------------------------------------------------------------------
+add_executable( pinned_mimalloc src/test.cpp src/mimalloc.cpp )
 add_subdirectory(extern/mimalloc)
-target_compile_definitions(pinned_mimalloc PRIVATE ENABLE_DEVICE)
+target_compile_definitions(pinned_mimalloc PRIVATE PMIMALLOC_ENABLE_DEVICE PMIMALLOC_ENABLE_LOGGING)
 target_include_directories( pinned_mimalloc PUBLIC src include )
-target_link_libraries( pinned_mimalloc PUBLIC mimalloc PRIVATE fmt::fmt-header-only NUMA::libnuma )
+target_link_libraries( pinned_mimalloc 
+                    PUBLIC mimalloc
+                    PRIVATE fmt::fmt-header-only NUMA::libnuma 
+)
 
+# ------------------------------------------------------------------------------
+# Choice of GPU language
+# ------------------------------------------------------------------------------
+if (PMIMALLOC_ENABLE_LOGGING)
+    target_sources(pinned_mimalloc PRIVATE src/log.cpp)
+endif()
+
+if (PMIMALLOC_ENABLE_DEVICE)
+    set(PMIMALLOC_DEVICE_RUNTIME "cuda" CACHE STRING "Choose the type of the gpu runtime.")
+    set_property(CACHE PMIMALLOC_DEVICE_RUNTIME PROPERTY STRINGS "cuda" "hip" "emulate")
+
+    string(TOUPPER ${PMIMALLOC_DEVICE_RUNTIME} PMIMALLOC_DEVICE_RUNTIME_U)
+    set(PMIMALLOC_DEVICE_RUNTIME_ ${PMIMALLOC_DEVICE_RUNTIME_U} CACHE INTERNAL "" FORCE)
+    set(PMIMALLOC_DEVICE "PMIMALLOC_DEVICE_${PMIMALLOC_DEVICE_RUNTIME_}" CACHE INTERNAL "" FORCE)
+
+    if (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "cuda")
+        find_package(CUDAToolkit REQUIRED)
+        message(STATUS "Found CUDA: ${CUDA_FOUND}")
+        target_link_libraries(pinned_mimalloc PRIVATE CUDA::cudart)
+    elseif (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "hip")
+        find_package(hip REQUIRED)
+        message(STATUS "Found hip: ${HIP_FOUND}")
+        target_link_libraries(pinned_mimalloc PRIVATE hip::device)
+        # workaround for clang-hip
+        target_compile_options(pinned_mimalloc PRIVATE $<BUILD_INTERFACE:-std=c++14>)
+    endif()
+
+    target_sources(pinned_mimalloc PRIVATE src/device_${PMIMALLOC_DEVICE_RUNTIME}.cpp)
+else()
+    set(PMIMALLOC_DEVICE "PMIMALLOC_DEVICE_NONE" CACHE INTERNAL "" FORCE)
+    target_sources(pinned_mimalloc PRIVATE src/device_none.cpp)
+endif()
+
+# ------------------------------------------------------------------------------
+# CTESTs
+# ------------------------------------------------------------------------------
 # create a `ctest` test that executes the pinned allocator note that ctest
 # doesn't use a shell, so we can't redirect the output to a file using the
 # usual '>' operator
