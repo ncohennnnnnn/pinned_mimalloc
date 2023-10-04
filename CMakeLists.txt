@@ -29,13 +29,25 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # ------------------------------------------------------------------------------
 # Set the external heap size, device and logging option
 # ------------------------------------------------------------------------------
-set( EXT_HEAP_SZ_EXP 25 CACHE STRING "Size of the extra mimalloc heap : 1 << X with 24 < X < 31" )
-if (${EXT_HEAP_SZ_EXP} LESS 25 OR ${EXT_HEAP_SZ_EXP} GREATER 31)
-    message(FATAL_ERROR "Invalid value for EXT_HEAP_SZ_EXP. Value must be within the range [25,31]")
-endif()
-
+# set( EXT_HEAP_SZ_EXP 25 CACHE STRING "Size of the extra mimalloc heap : 1 << X with 24 < X < 31" )
+# if (${EXT_HEAP_SZ_EXP} LESS 25 OR ${EXT_HEAP_SZ_EXP} GREATER 31)
+#     message(FATAL_ERROR "Invalid value for EXT_HEAP_SZ_EXP. Value must be within the range [25,31]")
+# endif()
 option( PMIMALLOC_ENABLE_DEVICE OFF)
 option( PMIMALLOC_ENABLE_LOGGING OFF)
+option( MPI_ENABLED OFF )
+
+# ------------------------------------------------------------------------------
+# Set the compiler options
+# ------------------------------------------------------------------------------
+option ( ALLOCATE_WITH_MPI OFF )
+if( ALLOCATE_WITH_MPI )
+    message("Allocating with MPI")
+endif()
+option ( ALLOCATE_WITH_STD ON )
+if( ALLOCATE_WITH_STD )
+    message("Allocating with std malloc")
+endif()
 
 # ------------------------------------------------------------------------------
 # Create config file
@@ -75,16 +87,24 @@ message(STATUS "Found fmt: ${FMT_FOUND}")
 find_package(NUMA REQUIRED)
 message(STATUS "Found NUMA: ${NUMA_FOUND}")
 
+if( MPI_ENABLED )
+    find_package(MPI REQUIRED)
+    message(STATUS "Found MPI: ${MPI_FOUND}")
+endif()
+
 # ------------------------------------------------------------------------------
 # Building executable target
 # ------------------------------------------------------------------------------
 add_executable( pinned_mimalloc src/test.cpp src/mimalloc.cpp )
 add_subdirectory(extern/mimalloc)
-target_compile_definitions(pinned_mimalloc PRIVATE PMIMALLOC_ENABLE_DEVICE PMIMALLOC_ENABLE_LOGGING)
-target_include_directories( pinned_mimalloc PUBLIC src include )
+target_compile_definitions(pinned_mimalloc PRIVATE 
+            PMIMALLOC_ENABLE_DEVICE PMIMALLOC_ENABLE_LOGGING
+            ALLOCATE_WITH_MPI ALLOCATE_WITH_STD
+            )
+target_include_directories( pinned_mimalloc PUBLIC include )
 target_link_libraries( pinned_mimalloc 
                     PUBLIC mimalloc
-                    PRIVATE fmt::fmt-header-only NUMA::libnuma 
+                    PRIVATE fmt::fmt-header-only NUMA::libnuma  MPI::MPI_CXX
 )
 
 # ------------------------------------------------------------------------------

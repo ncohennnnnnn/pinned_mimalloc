@@ -14,6 +14,8 @@
 #include <numa.h>
 #include <numaif.h>
 
+#include <mpi.h>
+
 #include <mimalloc.h>
 #include <mimalloc/atomic.h>
 #include <mimalloc/internal.h>
@@ -42,24 +44,41 @@
 
 /**
 * @brief The address must be 64MB aligned (required by mimalloc).
-* The free(void* ...) is overloaded by free(Mimalloc ...) to 
-* make sure the memory is unpinned before freeing it.
+* The free(void* ...) is overloaded by free(Mimalloc ...) to make sure the memory is unpinned before freeing it.
+* Set "prefix" to the namespace of the allocator.
 */
 #define ALLOC(allocator, deallocator) \
-void* allocator##_aligned(std::size_t size){ \
+void* ext_##allocator##_aligned(std::size_t size){ \
     if ( #allocator == "std_malloc" ) { return aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size); } \
     void* tmp = allocator(size); \
     fmt::print("{} : Raw ptr. \n", tmp); \
-    void* aligned_ptr = std::align(MIMALLOC_SEGMENT_ALIGNED_SIZE, size, tmp, size); \
+    void* aligned_ptr = std::align(MIMALLOC_SEGMENT_ALIGNED_SIZE, size/2, tmp, size); \
     fmt::print("{} : Aligned ptr. \n", aligned_ptr); \
     return aligned_ptr; \
 } \
-void free(Mimalloc mim){ \
+void ext_##deallocator(Mimalloc mim){ \
     mim.unpin(); \
     deallocator(mim.AlignedAddress()); \
 } \
 
+// // Define a type trait to map C++ types to MPI_Datatypes
+// template <typename T>
+// struct MpiTypeMapper {
+//     static MPI_Datatype get() { return MPI_BYTE; } // Default when unsupported type
+// };
+
+// template <>
+// struct MpiTypeMapper<int> {
+//     static MPI_Datatype get() { return MPI_INT; }
+// };
+
+// template <>
+// struct MpiTypeMapper<double> {
+//     static MPI_Datatype get() { return MPI_DOUBLE; }
+// };
+
 int get_node(void* ptr);
+
 
 class Mimalloc {
 public:
@@ -106,6 +125,8 @@ public:
 
 private:
     void* aligned_address = nullptr;
+    // int key;
+    // MPI_Win win;
     std::size_t aligned_size = 0;
     mi_arena_id_t arena_id{};
     mi_heap_t* heap = nullptr;

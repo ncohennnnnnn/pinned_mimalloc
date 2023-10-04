@@ -1,6 +1,5 @@
 #include <mimalloc.hpp>
 
-
 int get_node(void* ptr){
     int numa_node[1] = {-1};
     void* page = (void*)((std::size_t)ptr & ~((std::size_t)getpagesize()-1));
@@ -12,8 +11,10 @@ int get_node(void* ptr){
     return numa_node[0];
 }
 
-Mimalloc::Mimalloc(void* addr, const std::size_t size , const bool is_committed,
+Mimalloc::Mimalloc(void* addr, const std::size_t size, const bool is_committed,
             const bool is_zero, int numa_node){
+    // MPI_Win_create(addr, size, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win);
+
     // Doesn't consist of large OS pages
     bool is_large = false;
 
@@ -41,13 +42,17 @@ Mimalloc::Mimalloc(void* addr, const std::size_t size , const bool is_committed,
     // Do not use OS memory for allocation (but only pre-allocated arena)
     mi_option_set(mi_option_limit_os_alloc, 1);
 
+    // // For now we only use MPI to get the RMA key
+    // MPI_Win_lock_all(0, win);
+    // key = MPI_Win_shared_query(win, &rank, size, 1);
+    // MPI_Win_unlock_all(win);
+
     // Pin the allocated memory
     Mimalloc::pin();
 }
 
 /*
-TODO : discriminate between device and host alloc, specialize on host alloc and maybe let
-some other allocator or context do the device allocation job.
+TODO : discriminate between contexts ?
 */
 void* Mimalloc::allocate(const std::size_t bytes, const std::size_t alignment) {
     void* rtn = nullptr;
@@ -75,11 +80,11 @@ int Mimalloc::pin_or_unpin(bool pin){  // TODO : add error throw
     int success;
     std::string str;
     if ( pin ) { 
-        success = mlock(aligned_address, aligned_size); // CHANGE MLOCK TO A MORE GENERAL LOCK
+        success = mlock(aligned_address, aligned_size); // TODO : Adapt the pinning to the backend
         str = "pin";
     }
     else { 
-        success = munlock(aligned_address, aligned_size);  // CHANGE MUNLOCK TO A MORE GENERAL LOCK
+        success = munlock(aligned_address, aligned_size);  // TODO : Adapt the unpinning to the backend
         str = "unpin";
     }
     if ( success != 0) { 
