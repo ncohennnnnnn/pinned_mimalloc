@@ -35,7 +35,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # endif()
 option( PMIMALLOC_ENABLE_DEVICE OFF)
 option( PMIMALLOC_ENABLE_LOGGING OFF)
-option( MPI_ENABLED OFF )
 
 # ------------------------------------------------------------------------------
 # Set the compiler options
@@ -43,6 +42,8 @@ option( MPI_ENABLED OFF )
 option ( ALLOCATE_WITH_MPI OFF )
 if( ALLOCATE_WITH_MPI )
     message("Allocating with MPI")
+    find_package(MPI REQUIRED)
+    message(STATUS "Found MPI: ${MPI_FOUND}")
 endif()
 option ( ALLOCATE_WITH_STD ON )
 if( ALLOCATE_WITH_STD )
@@ -86,11 +87,6 @@ message(STATUS "Found fmt: ${FMT_FOUND}")
 
 find_package(NUMA REQUIRED)
 message(STATUS "Found NUMA: ${NUMA_FOUND}")
-
-if( MPI_ENABLED )
-    find_package(MPI REQUIRED)
-    message(STATUS "Found MPI: ${MPI_FOUND}")
-endif()
 
 # ------------------------------------------------------------------------------
 # Building executable target
