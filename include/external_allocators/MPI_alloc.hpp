@@ -4,7 +4,7 @@
 
 #include <mpi.h>
 
-void* MPI_alloc(size_t size) { 
+void* MPI_alloc(size_t size) {
     void* rtn = nullptr;
     MPI_Alloc_mem(size, MPI_INFO_NULL, &rtn);
     return rtn;
