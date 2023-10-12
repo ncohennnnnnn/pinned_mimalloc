@@ -1,5 +1,5 @@
 #include <device.hpp>
-#include <mimalloc.hpp>
+#include <pmimalloc.hpp>
 #include <log.hpp>
 
 #include <cstdint>

@@ -1,4 +1,6 @@
-#include <mimalloc.hpp>
+#pragma once
+
+#include <pmimalloc.hpp>
 
 #define std_alloc(x)    std::malloc(x)
 #define std_free(x)     std::free(x)

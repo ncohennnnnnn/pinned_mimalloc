@@ -34,21 +34,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 #     message(FATAL_ERROR "Invalid value for EXT_HEAP_SZ_EXP. Value must be within the range [25,31]")
 # endif()
 option( PMIMALLOC_ENABLE_DEVICE OFF)
-option( PMIMALLOC_ENABLE_LOGGING OFF)
+# option( PMIMALLOC_ENABLE_LOGGING OFF)
 
 # ------------------------------------------------------------------------------
 # Set the compiler options
 # ------------------------------------------------------------------------------
-option ( ALLOCATE_WITH_MPI OFF )
-if( ALLOCATE_WITH_MPI )
-    message("Allocating with MPI")
-    find_package(MPI REQUIRED)
-    message(STATUS "Found MPI: ${MPI_FOUND}")
-endif()
-option ( ALLOCATE_WITH_STD ON )
-if( ALLOCATE_WITH_STD )
-    message("Allocating with std malloc")
-endif()
+option( PMIMALLOC_ALLOCATE_WITH_MPI OFF )
 
 # ------------------------------------------------------------------------------
 # Create config file
@@ -91,17 +82,24 @@ message(STATUS "Found NUMA: ${NUMA_FOUND}")
 # ------------------------------------------------------------------------------
 # Building executable target
 # ------------------------------------------------------------------------------
-add_executable( pinned_mimalloc src/test.cpp src/mimalloc.cpp )
+add_executable( pinned_mimalloc src/test.cpp src/pmimalloc.cpp )
 add_subdirectory(extern/mimalloc)
 target_compile_definitions(pinned_mimalloc PRIVATE 
-            PMIMALLOC_ENABLE_DEVICE PMIMALLOC_ENABLE_LOGGING
-            ALLOCATE_WITH_MPI ALLOCATE_WITH_STD
+            PMIMALLOC_ENABLE_DEVICE 
+            # PMIMALLOC_ENABLE_LOGGING 
+            PMIMALLOC_ALLOCATE_WITH_MPI
             )
 target_include_directories( pinned_mimalloc PUBLIC include )
 target_link_libraries( pinned_mimalloc 
                     PUBLIC mimalloc
-                    PRIVATE fmt::fmt-header-only NUMA::libnuma  MPI::MPI_CXX
+                    PRIVATE fmt::fmt-header-only NUMA::libnuma
 )
+if( PMIMALLOC_ALLOCATE_WITH_MPI )
+    message("Allocating with MPI")
+    find_package(MPI REQUIRED)
+    message(STATUS "Found MPI: ${MPI_FOUND}")
+    target_link_libraries( pinned_mimalloc PRIVATE MPI::MPI_CXX )
+endif()
 
 # ------------------------------------------------------------------------------
 # Choice of GPU language
@@ -111,8 +109,8 @@ if (PMIMALLOC_ENABLE_LOGGING)
 endif()
 
 if (PMIMALLOC_ENABLE_DEVICE)
-    set(PMIMALLOC_DEVICE_RUNTIME "cuda" CACHE STRING "Choose the type of the gpu runtime.")
-    set_property(CACHE PMIMALLOC_DEVICE_RUNTIME PROPERTY STRINGS "cuda" "hip" "emulate")
+    set(PMIMALLOC_DEVICE_RUNTIME "none" CACHE STRING "Choose the type of the gpu runtime.")
+    set_property(CACHE PMIMALLOC_DEVICE_RUNTIME PROPERTY STRINGS "cuda" "hip" "none")
 
     string(TOUPPER ${PMIMALLOC_DEVICE_RUNTIME} PMIMALLOC_DEVICE_RUNTIME_U)
     set(PMIMALLOC_DEVICE_RUNTIME_ ${PMIMALLOC_DEVICE_RUNTIME_U} CACHE INTERNAL "" FORCE)
@@ -120,20 +118,24 @@ if (PMIMALLOC_ENABLE_DEVICE)
 
     if (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "cuda")
         find_package(CUDAToolkit REQUIRED)
-        message(STATUS "Found CUDA: ${CUDA_FOUND}")
+        message(STATUS "Found CUDA (and using it as device runtime): ${CUDA_FOUND}")
         target_link_libraries(pinned_mimalloc PRIVATE CUDA::cudart)
+        set( PMIMALLOC_ALLOCATE_WITH_CUDA ON )
+        target_compile_definitions( pinned_mimalloc PRIVATE PMIMALLOC_ALLOCATE_WITH_CUDA )
     elseif (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "hip")
         find_package(hip REQUIRED)
-        message(STATUS "Found hip: ${HIP_FOUND}")
+        message(STATUS "Found hip (and using it as device runtime): ${HIP_FOUND}")
         target_link_libraries(pinned_mimalloc PRIVATE hip::device)
         # workaround for clang-hip
         target_compile_options(pinned_mimalloc PRIVATE $<BUILD_INTERFACE:-std=c++14>)
+        set( PMIMALLOC_ALLOCATE_WITH_HIP ON )
+        target_compile_definitions( pinned_mimalloc PRIVATE PMIMALLOC_ALLOCATE_WITH_HIP )
+    elseif (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "none")
+        message("Warning : no device runtime selected!")
+        target_sources(pinned_mimalloc PRIVATE src/device/device_none.cpp)
     endif()
 
-    target_sources(pinned_mimalloc PRIVATE src/device_${PMIMALLOC_DEVICE_RUNTIME}.cpp)
-else()
-    set(PMIMALLOC_DEVICE "PMIMALLOC_DEVICE_NONE" CACHE INTERNAL "" FORCE)
-    target_sources(pinned_mimalloc PRIVATE src/device_none.cpp)
+    target_sources(pinned_mimalloc PRIVATE src/device/device_${PMIMALLOC_DEVICE_RUNTIME}.cpp)
 endif()
 
 # ------------------------------------------------------------------------------

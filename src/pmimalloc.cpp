@@ -1,4 +1,4 @@
-#include <mimalloc.hpp>
+#include <pmimalloc.hpp>
 
 int get_node(void* ptr){
     int numa_node[1] = {-1};
@@ -11,15 +11,20 @@ int get_node(void* ptr){
     return numa_node[0];
 }
 
-Mimalloc::Mimalloc(void* addr, const std::size_t size, const bool is_committed,
-            const bool is_zero, int numa_node){
-    // MPI_Win_create(addr, size, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win);
-
-    // Doesn't consist of large OS pages
+pmimalloc::pmimalloc(void* addr, const std::size_t size, const bool is_committed,
+            const bool is_zero, int numa_node, const bool device){
+    pmimalloc::device = device;
+    
+    /* Doesn't consist of large OS pages. */
     bool is_large = false;
 
-    Mimalloc::aligned_size = size ;
-    Mimalloc::aligned_address = addr;
+   
+    pmimalloc::aligned_size = size ;
+    pmimalloc::aligned_address = addr;
+
+    /* Pin the allocated memory, if not already by device runtime. */
+    if( device == true) { pmimalloc::device = device; }
+    else { pmimalloc::pin(); }
 
     // Find NUMA node if not known before 
     if ( numa_node == -1 ) { numa_node = get_node(aligned_address); }
@@ -28,15 +33,15 @@ Mimalloc::Mimalloc(void* addr, const std::size_t size, const bool is_committed,
     bool success = mi_manage_os_memory_ex(aligned_address, aligned_size, is_committed,
                                         is_large, is_zero, numa_node, true, &arena_id);
     if (!success) { // TODO : add error throw
-        fmt::print("{} : [error] Mimalloc failed to create the arena. \n", aligned_address);
-        Mimalloc::aligned_address = nullptr;
+        fmt::print("{} : [error] pmimalloc failed to create the arena. \n", aligned_address);
+        pmimalloc::aligned_address = nullptr;
     }
 
     // Associate a heap to the arena
     heap = mi_heap_new_in_arena(arena_id);
     if (heap == nullptr) { // TODO : add error throw
-        fmt::print("{} : [error] Mimalloc failed to create the heap. \n", aligned_address);
-        Mimalloc::aligned_address = nullptr;
+        fmt::print("{} : [error] pmimalloc failed to create the heap. \n", aligned_address);
+        pmimalloc::aligned_address = nullptr;
     }
 
     // Do not use OS memory for allocation (but only pre-allocated arena)
@@ -47,14 +52,13 @@ Mimalloc::Mimalloc(void* addr, const std::size_t size, const bool is_committed,
     // key = MPI_Win_shared_query(win, &rank, size, 1);
     // MPI_Win_unlock_all(win);
 
+    // TODO : Choose the way to pin, i.e. depends on the network if pinned
     // Pin the allocated memory
-    Mimalloc::pin();
+    // pmimalloc::pin();
 }
 
-/*
-TODO : discriminate between contexts ?
-*/
-void* Mimalloc::allocate(const std::size_t bytes, const std::size_t alignment) {
+/* TODO : discriminate between contexts ? */
+void* pmimalloc::allocate(const std::size_t bytes, const std::size_t alignment) {
     void* rtn = nullptr;
     if (unlikely(alignment)) {
         rtn = mi_heap_malloc_aligned(heap, bytes, alignment);
@@ -65,18 +69,26 @@ void* Mimalloc::allocate(const std::size_t bytes, const std::size_t alignment) {
     return rtn;
 }
 
-void* Mimalloc::reallocate(void* ptr, std::size_t size ) {
+void* pmimalloc::reallocate(void* ptr, std::size_t size ) {
     return mi_heap_realloc(heap, ptr, size );
 }
 
-void Mimalloc::deallocate(void* ptr, std::size_t size ) {
+void pmimalloc::deallocate(void* ptr, std::size_t size ) {
     if (likely(ptr)) {
         if (unlikely(size)) { mi_free_size(ptr, size ); }
         else { mi_free(ptr); }
     }
 }
 
-int Mimalloc::pin_or_unpin(bool pin){  // TODO : add error throw
+#if !PMIMALLOC_ENABLE_DEVICE
+
+void* device_allocate(std::size_t size) {}
+
+// void* device_reallocate(void* ptr, std::size_t size) {}
+
+void device_deallocate(void* ptr) noexcept {}
+
+int pmimalloc::pin_or_unpin(bool pin){  // TODO : add error throw
     int success;
     std::string str;
     if ( pin ) { 
@@ -88,7 +100,7 @@ int Mimalloc::pin_or_unpin(bool pin){  // TODO : add error throw
         str = "unpin";
     }
     if ( success != 0) { 
-        fmt::print("{} : [error] Mimalloc failed to {} the allocated memory :  ", aligned_address, str);
+        fmt::print("{} : [error] pmimalloc failed to {} the allocated memory :  ", aligned_address, str);
         if        (errno == EAGAIN) {
             fmt::print("EAGAIN. \n (Some or all of the specified address range could not be locked.) \n");
         } else if (errno == EINVAL) {
@@ -103,3 +115,9 @@ int Mimalloc::pin_or_unpin(bool pin){  // TODO : add error throw
 
     return success;
 }
+
+#else
+
+int pmimalloc::pin_or_unpin(bool pin) { return 0; }
+
+#endif

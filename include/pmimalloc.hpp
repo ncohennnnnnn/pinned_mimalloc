@@ -44,19 +44,22 @@
 
 /**
 * @brief The address must be 64MB aligned (required by mimalloc).
-* The free(void* ...) is overloaded by free(Mimalloc ...) to make sure the memory is unpinned before freeing it.
-* Set "prefix" to the namespace of the allocator.
+* Creates an aligned allocator and a deallocator that unpins first.
+* /!\ Change "std_alloc_TEST" back to "std_alloc" /!\
+*
+* TODO : Find a way to somehow not lose half the allocated memory
 */
 #define ALLOC(allocator, deallocator) \
 void* ext_##allocator##_aligned(std::size_t size){ \
-    if ( #allocator == "std_malloc" ) { return aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size); } \
-    void* tmp = allocator(size); \
-    fmt::print("{} : Raw ptr. \n", tmp); \
-    void* aligned_ptr = std::align(MIMALLOC_SEGMENT_ALIGNED_SIZE, size/2, tmp, size); \
-    fmt::print("{} : Aligned ptr. \n", aligned_ptr); \
+    if ( #allocator == "std_alloc_TEST" ) { return aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size); } \
+    std::size_t size_buff = 2*size; \
+    void* tmp = allocator(size_buff); \
+    fmt::print("{} : Raw {}ated ptr. \n", tmp, #allocator); \
+    void* aligned_ptr = std::align(MIMALLOC_SEGMENT_ALIGNED_SIZE, size, tmp, size_buff); \
+    fmt::print("{} : Aligned {}ated ptr. \n", aligned_ptr, #allocator); \
     return aligned_ptr; \
 } \
-void ext_##deallocator(Mimalloc mim){ \
+void ext_##deallocator(pmimalloc mim){ \
     mim.unpin(); \
     deallocator(mim.AlignedAddress()); \
 } \
@@ -79,18 +82,21 @@ void ext_##deallocator(Mimalloc mim){ \
 
 int get_node(void* ptr);
 
-
-class Mimalloc {
+class pmimalloc {
 public:
   /**
-   * @brief Manages a particular memory arena. 
-   * Set numa_node to 0 if single numa node, ignore if unknown.
+   * @brief Creates a mimalloc arena from externally allocated memory. 
+   * @param addr is the adress of the chunk of memory.
+   * @param size its size.
+   * @param is_committed
+   * @param is_zero
+   * @param numa_node 0 if single numa node, ignore if unknown.
    */
-    Mimalloc(void* addr, const std::size_t size, const bool is_committed = false,
-            const bool is_zero = true, int numa_node = -1);
+    pmimalloc(void* addr, const std::size_t size, const bool is_committed = true,
+            const bool is_zero = false, int numa_node = -1, const bool device = false);
 
-    // Leave it undeleted to keep allocated blocks
-    ~Mimalloc() {}
+    /* Leave it undeleted to keep allocated blocks */
+    ~pmimalloc() {}
 
     std::size_t AlignedSize() const { return aligned_size; }
 
@@ -102,31 +108,29 @@ public:
 
     void deallocate(void* ptr, std::size_t size = 0);
 
-#if PMIMALLOC_ENABLE_DEVICE
+    std::size_t getAllocatedSize(void* ptr) { return mi_usable_size(ptr); }
 
     void* device_allocate(std::size_t size);
 
     // void* device_reallocate(void* ptr, std::size_t size);
 
     void device_deallocate(void* ptr) noexcept;
-
-#endif
-
-    /**
-    * @brief Set bool pin to true to pin the memory, false to unpin it.
-    */ 
+    
+private:
+    /** 
+     * @param pin true to pin the arena, false to unpin it. 
+     */ 
     int pin_or_unpin(bool pin);
 
     void pin(){ int success = pin_or_unpin(true); }
 
     void unpin(){ int success = pin_or_unpin(false); }
 
-    std::size_t getAllocatedSize(void* ptr) { return mi_usable_size(ptr); }
-
 private:
     void* aligned_address = nullptr;
     // int key;
     // MPI_Win win;
+    bool m_device = false;
     std::size_t aligned_size = 0;
     mi_arena_id_t arena_id{};
     mi_heap_t* heap = nullptr;
