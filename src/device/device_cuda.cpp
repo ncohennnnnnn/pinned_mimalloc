@@ -1,5 +1,4 @@
 #include <device.hpp>
-#include <pmimalloc.hpp>
 #include <log.hpp>
 
 #include <cstdint>
@@ -37,7 +36,7 @@ set_device_id(int id)
 }
 
 void*
-device_malloc(std::size_t size)
+device_allocate(std::size_t size)
 {
     void* ptr;
     PMIMALLOC_CHECK_CUDA_RESULT(cudaMalloc(&ptr, size));
@@ -47,7 +46,7 @@ device_malloc(std::size_t size)
 }
 
 void
-device_free(void* ptr) noexcept
+device_deallocate(void* ptr) noexcept
 {
     PMIMALLOC_LOG("freeing    using cudaFree on device", get_device_id(), ":", (std::uintptr_t)ptr);
     cudaFree(ptr);

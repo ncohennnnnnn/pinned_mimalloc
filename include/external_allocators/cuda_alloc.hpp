@@ -8,10 +8,19 @@
 *  TODO : Check which flags to select in host allocator
 */
 void* cuda_alloc(size_t size) { 
-    void* rtn = nullptr;
-    cudaHostAlloc(&rtn, size, cudaHostAllocPortable);
+    void* rtn;
+    cudaError_t cudaStatus = cudaHostAlloc((void**)&rtn, size, cudaHostAllocDefault);
+    if (cudaStatus != cudaSuccess) {
+        fmt::print("cudaHostAlloc failed: {} \n", cudaGetErrorString(cudaStatus));
+        return nullptr;
+    }
     return rtn;
 }
-void cuda_free(void* ptr) { cudaFreeHost(ptr); }
+void cuda_free(void* ptr) { 
+    cudaError_t cudaStatus = cudaFreeHost(ptr);
+    if (cudaStatus != cudaSuccess) {
+        fmt::print("cudaHostFree failed: {} \n", cudaGetErrorString(cudaStatus));
+    }
+}
 
 ALLOC(cuda_alloc, cuda_free)

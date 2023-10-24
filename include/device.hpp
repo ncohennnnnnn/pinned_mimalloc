@@ -3,6 +3,12 @@
 #include <cstddef>
 
 
+void* device_allocate(std::size_t size);
+
+// void* device_reallocate(void* ptr, std::size_t size);
+
+void device_deallocate(void* ptr) noexcept;
+
 int get_num_devices();
 
 int get_device_id();
