@@ -4,23 +4,23 @@
 
 
 // default implementation: call normal registration
-template<class Context>
+template<class context>
 constexpr auto
-register_device_memory(Context&& c, void* ptr, std::size_t size) noexcept(
-    noexcept(register_memory(std::forward<Context>(c), ptr, size)))
-    -> decltype(register_memory(std::forward<Context>(c), ptr, size))
+register_device_memory(context&& c, void* ptr, std::size_t size) noexcept(
+    noexcept(register_memory(std::forward<context>(c), ptr, size)))
+    -> decltype(register_memory(std::forward<context>(c), ptr, size))
 {
-    return register_memory(std::forward<Context>(c), ptr, size);
+    return register_memory(std::forward<context>(c), ptr, size);
 }
 
 struct register_device_fn
 {
-    template<typename Context>
-    constexpr auto operator()(Context&& c, void* ptr, std::size_t size) const
-        noexcept(noexcept(register_device_memory(std::forward<Context>(c), ptr, size)))
-            -> decltype(register_device_memory(std::forward<Context>(c), ptr, size))
+    template<typename context>
+    constexpr auto operator()(context&& c, void* ptr, std::size_t size) const
+        noexcept(noexcept(register_device_memory(std::forward<context>(c), ptr, size)))
+            -> decltype(register_device_memory(std::forward<context>(c), ptr, size))
     {
-        return register_device_memory(std::forward<Context>(c), ptr, size);
+        return register_device_memory(std::forward<context>(c), ptr, size);
     }
 };
 

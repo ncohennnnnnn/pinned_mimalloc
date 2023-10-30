@@ -15,17 +15,13 @@ class region
     void* m_ptr;
 
   public:
-    region(void* ptr)
-    : m_ptr{ptr}
-    {
-    }
+    region(void* ptr) : m_ptr{ptr} {}
 
     region(region const&) = delete;
 
     region(region&& r) noexcept
     : m_ptr{std::exchange(r.m_ptr, nullptr)}
-    {
-    }
+    {}
 
     // get a handle to some portion of the region
     handle_type get_handle(std::size_t offset, std::size_t size)
@@ -60,7 +56,7 @@ class rma_region
             | UCP_MEM_MAP_PARAM_FIELD_LENGTH      // enable length field
         //  | UCP_MEM_MAP_PARAM_FIELD_FLAGS       // enable flags field
 #if (UCP_API_VERSION >= 17432576)                 // version >= 1.10
-            | UCP_MEM_MAP_PARAM_FIELD_MEMORY_TYPE // enable memory type field
+            | UCP_MEM_MAP_PARAM_FIELD_memory_type // enable memory type field
 #endif
         ;
         /* clang-format on */
@@ -69,7 +65,7 @@ class rma_region
         params.address = ptr;
         params.length = size;
 #if (UCP_API_VERSION >= 17432576) // version >= 1.10
-        params.memory_type = UCS_MEMORY_TYPE_HOST;
+        params.memory_type = UCS_memory_type_HOST;
 #endif
 
         // special treatment for gpu memory
@@ -78,9 +74,9 @@ class rma_region
         {
 #if (UCP_API_VERSION >= 17432576) // version >= 1.10
 #if defined(OOMPH_DEVICE_CUDA)
-            params.memory_type = UCS_MEMORY_TYPE_CUDA;
+            params.memory_type = UCS_memory_type_CUDA;
 #elif defined(OOMPH_DEVICE_HIP)
-            params.memory_type = UCS_MEMORY_TYPE_ROCM;
+            params.memory_type = UCS_memory_type_ROCM;
 #endif
 #endif
         }

@@ -8,8 +8,8 @@
 // ===========================================
 // The function
 //
-//     template<memory_type M, typename Context>
-//     /*unspecified*/ register_memory<M>(Context&& context, void* ptr, std::size_t size)
+//     template<memory_type M, typename context>
+//     /*unspecified*/ register_memory<M>(context&& context, void* ptr, std::size_t size)
 //
 // is found by ADL and can be used to customize memory registration for different network/transport
 // layers. The memory at address `ptr' and extent `size' shall be registered with the `context'.
@@ -55,12 +55,12 @@
 
 struct register_fn
 {
-    template<typename Context>
-    constexpr auto operator()(Context&& c, void* ptr, std::size_t size) const
-        noexcept(noexcept(register_memory(std::forward<Context>(c), ptr, size)))
-            -> decltype(register_memory(std::forward<Context>(c), ptr, size))
+    template<typename context>
+    constexpr auto operator()(context&& c, void* ptr, std::size_t size) const
+        noexcept(noexcept(register_memory(std::forward<context>(c), ptr, size)))
+            -> decltype(register_memory(std::forward<context>(c), ptr, size))
     {
-        return register_memory(std::forward<Context>(c), ptr, size);
+        return register_memory(std::forward<context>(c), ptr, size);
     }
 };
 

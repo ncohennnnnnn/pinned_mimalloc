@@ -19,7 +19,7 @@ void* cuda_alloc(size_t size) {
 void cuda_free(void* ptr) { 
     cudaError_t cudaStatus = cudaFreeHost(ptr);
     if (cudaStatus != cudaSuccess) {
-        fmt::print("cudaHostFree failed: {} \n", cudaGetErrorString(cudaStatus));
+        fmt::print("cudaFreeHost failed: {} \n", cudaGetErrorString(cudaStatus));
     }
 }
 
