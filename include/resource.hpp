@@ -41,6 +41,8 @@ class resource{
 public:
     using key_t = context::key_t;
 
+    resource() {  }
+
     resource(std::size_t size, bool pin, std::size_t alignement = 0);
 
     std::size_t get_usable_size(void* ptr);

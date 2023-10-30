@@ -88,8 +88,6 @@ class pmimallocator
  
         throw std::bad_alloc();
     }
-    
-
 
 /* Allocate at least */
 
@@ -138,6 +136,8 @@ private:
                   << " bytes at " << std::hex << std::showbase
                   << reinterpret_cast<void*>(p) << std::dec << '\n';
     }
+
+
 };
  
 
