@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(pinned_mimalloc)
+project(pmimalloc)
 
 # ------------------------------------------------------------------------------
 # Policies
@@ -39,10 +39,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # ------------------------------------------------------------------------------
 # Set the compiler options
 # ------------------------------------------------------------------------------
-option( PMIMALLOC_WITH_MPI OFF )
-option( PMIMALLOC_WITH_UCX OFF )
-option( PMIMALLOC_WITH_LIBFABRIC OFF )
-
+option( WITH_MIMALLOC OFF )
 
 # ------------------------------------------------------------------------------
 # Create config file
@@ -82,82 +79,70 @@ message(STATUS "Found fmt: ${FMT_FOUND}")
 find_package(NUMA REQUIRED)
 message(STATUS "Found NUMA: ${NUMA_FOUND}")
 
+find_package(CUDAToolkit REQUIRED)
+message(STATUS "Found CUDA : ${CUDA_FOUND}")
+
 # ------------------------------------------------------------------------------
 # Building executable target
 # ------------------------------------------------------------------------------
-add_executable( pinned_mimalloc src/test.cpp src/pmimalloc.cpp )
-add_subdirectory(extern/mimalloc)
-target_compile_definitions(pinned_mimalloc PRIVATE 
-            PMIMALLOC_ENABLE_DEVICE 
-            # PMIMALLOC_ENABLE_LOGGING 
-            PMIMALLOC_WITH_MPI
-            PMIMALLOC_WITH_UCX
-            PMIMALLOC_WITH_LIBFABRIC
-            )
-target_include_directories( pinned_mimalloc PUBLIC include )
-target_link_libraries( pinned_mimalloc 
-                    PUBLIC mimalloc
-                    PRIVATE fmt::fmt-header-only NUMA::libnuma
-)
-if( PMIMALLOC_WITH_MPI )
-    find_package(MPI REQUIRED)
-    message(STATUS "Found MPI: ${MPI_FOUND}")
-    target_link_libraries( pinned_mimalloc PRIVATE MPI::MPI_CXX )
+add_executable( pmimalloc src/test.cpp)
+target_compile_definitions(pmimalloc 
+                        PRIVATE 
+                            WITH_MIMALLOC
+                        )
+target_include_directories( pmimalloc PUBLIC include )
+target_link_libraries( pmimalloc 
+                    PUBLIC 
+                        mimalloc
+                    PRIVATE 
+                        fmt::fmt-header-only 
+                        NUMA::libnuma 
+                        CUDA::cudart
+                    )
+if (WITH_MIMALLOC)
+    add_subdirectory(ext/mimalloc)
+    target_sources(pmimalloc PRIVATE src/ex_mimalloc.cpp)
 endif()
-if( PMIMALLOC_WITH_UCX )
-    find_package(UCX REQUIRED)
-    message(STATUS "Found UCX: ${UCX_FOUND}")
-    # add_subdirectory(src/ucx)
-    target_link_libraries( pinned_mimalloc PRIVATE UCX::ucx )
-endif()
-if( PMIMALLOC_WITH_LIBFABRIC )
+# ------------------------------------------------------------------------------
+# Choice of backend provider
+# ------------------------------------------------------------------------------
+set(BACKEND "none" CACHE STRING "Choose the type of the backend.")
+set_property(CACHE BACKEND PROPERTY STRINGS "libfabric" "ucx" "mpi")
+
+string(TOUPPER ${BACKEND} BACKEND_U)
+set(BACKEND_ ${BACKEND_U} CACHE INTERNAL "" FORCE)
+# set(PMIMALLOC_DEVICE "PMIMALLOC_DEVICE_${BACKEND_}" CACHE INTERNAL "" FORCE)
+
+if (${BACKEND} STREQUAL "libfabric")
     find_package(Libfabric REQUIRED)
-    message(STATUS "Found Libfabric: ${LIBFABRIC_FOUND}")
+    message(STATUS "Found Libfabric : ${LIBFABRIC_FOUND}")
     find_package(Boost REQUIRED)
-    message(STATUS "Found Boost: ${BOOST_FOUND}")
-    # add_subdirectory(src/libfabric)
-    target_link_libraries( pinned_mimalloc PRIVATE 
-                libfabric::libfabric 
-                Boost::boost
-    )
+    message(STATUS "Found Boost : ${BOOST_FOUND}")
+    target_link_libraries(pmimalloc 
+                        PRIVATE 
+                            libfabric::libfabric 
+                            Boost::boost
+                        )
+    set( WITH_LIBFABRIC ON )
+    target_compile_definitions( pmimalloc PRIVATE WITH_LIBFABRIC )
+elseif (${BACKEND} STREQUAL "ucx")
+    find_package(UCX REQUIRED)
+    message(STATUS "Found UCX : ${UCX_FOUND}")
+    target_link_libraries(pmimalloc PRIVATE UCX::ucx)
+    set( WITH_UCX ON )
+    target_compile_definitions( pmimalloc PRIVATE WITH_UCX )
+elseif (${BACKEND} STREQUAL "mpi")
+    find_package(MPI REQUIRED)
+    message(STATUS "Found MPI : ${MPI_FOUND}")
+    target_link_libraries(pmimalloc PRIVATE MPI::MPI_CXX )
+    set( WITH_MPI ON )
+    target_compile_definitions( pmimalloc PRIVATE WITH_MPI )
+elseif (${BACKEND} STREQUAL "none")
+    message("No backend selected.")
 endif()
 
-# ------------------------------------------------------------------------------
-# Choice of GPU runtime
-# ------------------------------------------------------------------------------
-# if (PMIMALLOC_ENABLE_LOGGING)
-#     target_sources(pinned_mimalloc PRIVATE src/log.cpp)
-# endif()
-
-# if (PMIMALLOC_ENABLE_DEVICE)
-set(PMIMALLOC_DEVICE_RUNTIME "none" CACHE STRING "Choose the type of the gpu runtime.")
-set_property(CACHE PMIMALLOC_DEVICE_RUNTIME PROPERTY STRINGS "cuda" "hip" "none")
-
-string(TOUPPER ${PMIMALLOC_DEVICE_RUNTIME} PMIMALLOC_DEVICE_RUNTIME_U)
-set(PMIMALLOC_DEVICE_RUNTIME_ ${PMIMALLOC_DEVICE_RUNTIME_U} CACHE INTERNAL "" FORCE)
-set(PMIMALLOC_DEVICE "PMIMALLOC_DEVICE_${PMIMALLOC_DEVICE_RUNTIME_}" CACHE INTERNAL "" FORCE)
-
-if (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "cuda")
-    find_package(CUDAToolkit REQUIRED)
-    message(STATUS "Found CUDA : ${CUDA_FOUND}")
-    target_link_libraries(pinned_mimalloc PRIVATE CUDA::cudart)
-    set( PMIMALLOC_WITH_CUDA ON )
-    target_compile_definitions( pinned_mimalloc PRIVATE PMIMALLOC_WITH_CUDA )
-elseif (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "hip")
-    find_package(hip REQUIRED)
-    message(STATUS "Found hip (and using it as device runtime): ${HIP_FOUND}")
-    target_link_libraries(pinned_mimalloc PRIVATE hip::device)
-    # workaround for clang-hip
-    target_compile_options(pinned_mimalloc PRIVATE $<BUILD_INTERFACE:-std=c++14>)
-    set( PMIMALLOC_ALLOCATE_WITH_HIP ON )
-    target_compile_definitions( pinned_mimalloc PRIVATE PMIMALLOC_WITH_HIP )
-elseif (${PMIMALLOC_DEVICE_RUNTIME} STREQUAL "none")
-    message("No device runtime selected.")
-    target_sources(pinned_mimalloc PRIVATE src/device/device_none.cpp)
-endif()
-
-target_sources(pinned_mimalloc PRIVATE src/device/device_${PMIMALLOC_DEVICE_RUNTIME}.cpp)
-# endif()
+target_sources(pmimalloc PRIVATE src/${BACKEND}/backend.cpp)
+target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
 
 # ------------------------------------------------------------------------------
 # CTESTs
@@ -165,6 +150,6 @@ target_sources(pinned_mimalloc PRIVATE src/device/device_${PMIMALLOC_DEVICE_RUNT
 # create a `ctest` test that executes the pinned allocator note that ctest
 # doesn't use a shell, so we can't redirect the output to a file using the
 # usual '>' operator
-add_test(NAME pinned_mimalloc
-         COMMAND "$<TARGET_FILE:pinned_mimalloc>"
+add_test(NAME pmimalloc
+         COMMAND "$<TARGET_FILE:pmimalloc>"
 )

@@ -1,7 +1,3 @@
-#pragma once 
-
-#include <resource.hpp>
-
 class resource_builder {
 public:
 
@@ -30,10 +26,11 @@ public:
     resource_builder pin_with_device() 
     { 
         m_pin_with_device = true; 
+        m_pin = true;
         return *this;
     }
 
-    resource_builder register() 
+    resource_builder register_memory() 
     { 
         m_register = true; 
         return *this;
@@ -51,48 +48,71 @@ public:
         return *this;
     }
 
-    resource build() {
+    auto build() {
         if (m_register && m_on_device)
         { 
-            resource<context<backend, device_memory>> rtn(m_size, false, alignement);
+            using rsrc = resource<context<backend, device_memory>, ex_mimalloc>;
+            auto rtn = std::make_shared<rsrc>(m_size, m_alignement);
             reset();
             return rtn; 
         }
 
         if (m_register && !m_on_device && m_pin && m_pin_with_device)
         { 
-            resource<context<backend, host_memory, device_memory>> rtn(m_size, true, alignement);
+            using rsrc = resource<context<backend, cuda_pinned>, ex_mimalloc>;
+            std::shared_ptr<rsrc> rtn = std::make_shared<rsrc>(m_size, m_alignement);
             reset();
             return rtn; 
         }
 
-        if ((m_register && !m_on_device && m_pin && !m_pin_with_device) || (m_register && !m_on_device && !m_pin))
+        if (m_register && !m_on_device && m_pin && !m_pin_with_device)
         { 
-            resource<context<backend, host_memory>> rtn(m_size, m_pin, alignement);
+            using rsrc = resource<context<backend, pinned>, ex_mimalloc>;
+            std::shared_ptr<rsrc> rtn = std::make_shared<rsrc>(m_size, m_alignement);
+            reset();
+            return rtn; 
+        }
+
+        if (m_register && !m_on_device && !m_pin)
+        { 
+            using rsrc = resource<context<backend, host_memory>, ex_mimalloc>;
+            std::shared_ptr<rsrc> rtn = std::make_shared<rsrc>(m_size, m_alignement);
             reset();
             return rtn; 
         }
 
         if (!m_register && m_on_device)
         { 
-            resource<context<backend_none, device_memory>> rtn(m_size, false, alignement);
+            using rsrc = resource<context<backend_none, device_memory>, ex_mimalloc>;
+            std::shared_ptr<rsrc> rtn = std::make_shared<rsrc>(m_size, m_alignement);
             reset();
             return rtn; 
         }
 
         if (!m_register && !m_on_device && m_pin && m_pin_with_device)
         { 
-            resource<context<backend_none, host_memory, device_memory>> rtn(m_size, true, alignement);
+            using rsrc = resource<context<backend_none, cuda_pinned>, ex_mimalloc>;
+            std::shared_ptr<rsrc> rtn = std::make_shared<rsrc>(m_size, m_alignement);
             reset();
             return rtn; 
         }
 
-        if ((!m_register && !m_on_device && !m_pin) || (!m_register && !m_on_device && m_pin && !m_pin_with_device))
+        if (!m_register && !m_on_device && m_pin && !m_pin_with_device)
         { 
-            resource<context<backend_none, host_memory>> rtn(m_size, m_pin, alignement);
+            using rsrc = resource<context<backend_none, pinned>, ex_mimalloc>;
+            std::shared_ptr<rsrc> rtn = std::make_shared<rsrc>(m_size, m_alignement);
             reset();
             return rtn; 
         }
+
+        if (!m_register && !m_on_device && !m_pin)
+        { 
+            using rsrc = resource<context<backend_none, host_memory>, ex_mimalloc>;
+            std::shared_ptr<rsrc> rtn = std::make_shared<rsrc>(m_size, m_alignement);
+            reset();
+            return rtn; 
+        }
+
     }
 
     resource_builder reset() 

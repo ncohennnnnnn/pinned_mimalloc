@@ -1,8 +1,11 @@
+#pragma once
+
 #include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <new>
 #include <vector>
+#include <memory>
 
 #include <resource.hpp>
 
@@ -10,9 +13,11 @@
 template<typename T, typename Resource>
 class pmimallocator
 {
+public:
 /* Types */
     using this_type       = pmimallocator<T, Resource>;
     using resource_type   = Resource;
+    using shared_resource = std::shared_ptr<Resource>;
     using value_type      = T;
     using pointer         = T*;
     using const_pointer   = const T*;
@@ -24,137 +29,109 @@ class pmimallocator
     using propagate_on_container_move_assignment = std::true_type;
 
     template<typename U>
-    struct rebind { typedef pmimallocator<U> other; };
+    struct rebind { 
+        using other = pmimallocator<U,Resource>; 
+    };
 
 /* Contructors */
 
-    pmimallocator() throw();
+    pmimallocator( shared_resource r) noexcept 
+    : m_sptr_resource{r} 
+    {}
 
-    pmimallocator() noexcept;
+    template<typename Args>
+    pmimallocator( const resource_builder<resource_type, Args>& rb ) noexcept 
+    // : m_sptr_resource{std::make_shared<rb::resource_t>(rb.build())} 
+    {
+        m_sptr_resource = std::make_shared<resource_type>(rb.build());
+    }
 
-    constexpr pmimallocator() noexcept;
+    pmimallocator( const resource_type& r ) noexcept 
+    // : m_sptr_resource{std::make_shared<rb::resource_t>(rb.build())} 
+    {
+        m_sptr_resource = std::make_shared<resource_type>(r);
+    }
 
-    pmimallocator( const pmimallocator& other ) throw();
+    pmimallocator( const pmimallocator& other ) noexcept = delete;
 
-    pmimallocator( const pmimallocator& other ) noexcept;
-
-    constexpr pmimallocator( const pmimallocator& other ) noexcept;
-
+// TODO : take care of this one
     template< class U >
-    pmimallocator( const pmimallocator<U>& other ) throw();
+    pmimallocator( const pmimallocator<Resource, U>& other ) noexcept = delete;
 
-    template< class U >
-    pmimallocator( const pmimallocator<U>& other ) noexcept;
+/* Destructor */
 
-    template< class U >
-    constexpr pmimallocator( const pmimallocator<U>& other ) noexcept;
- 
-    pmimallocator() = default;
-
-/* Destructors */
-
-    ~allocator();
-
-    constexpr ~allocator();
-
-/* Address */
-
-    pointer address( reference x ) const;
-
-    pointer address( reference x ) const noexcept;
-
-    const_pointer address( const_reference x ) const;
-
-    const_pointer address( const_reference x ) const noexcept;
+    ~pmimallocator();
 
 /* Allocate */
 
-    pointer allocate( size_type n, const void* hint = 0 );
-
-    T* allocate( std::size_t n, const void* hint );
-
-    T* allocate( std::size_t n );
-
-    [[nodiscard]] constexpr T* allocate( std::size_t n )    
+    [[nodiscard]] constexpr T* allocate( const std::size_t n, const std::size_t alignment = 0 )    
     {
-        if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
-            throw std::bad_array_new_length();
- 
-        if (auto p = static_cast<T*>(std::malloc(size * sizeof(T))))
-        {
-            report(p, n);
-            return p;
-        }
- 
-        throw std::bad_alloc();
+        void* rtn = m_sptr_resource->allocate(n, alignment);
+        return static_cast<T*>(rtn);
     }
-
-/* Allocate at least */
-
-    [[nodiscard]] constexpr std::allocation_result<T*, std::size_t> 
-    allocate_at_least( std::size_t n );
 
 /* Deallocate */
 
-    void deallocate( T* p, std::size_t n );
+    void deallocate( T* p, std::size_t n = 0 )
+    {
+        void* tmp = static_cast<void*>(p);
+        return m_sptr_resource->deallocate(tmp, n);
+    }
 
-    constexpr void deallocate( T* p, std::size_t n );
-
-/* Max size */
-
-    size_type max_size() const throw();
-
-    size_type max_size() const noexcept;
-
-/* Construct */
-
-    void construct( pointer p, const_reference val );
-
-    template< class U, class... Args >
-    void construct( U* p, Args&&... args );
-
-/* Destroy */
-
-    void destroy( pointer p );
-
-    template<class U>
-    void destroy( U* p );
 		
-
-
-
-    
-    void deallocate(T* p, std::size_t n) noexcept
-    {
-        report(p, n, 0);
-        std::free(p);
-    }
 private:
-    void report(T* p, std::size_t n, bool alloc = true) const
-    {
-        std::cout << (alloc ? "Alloc: " : "Dealloc: ") << sizeof(T) * n
-                  << " bytes at " << std::hex << std::showbase
-                  << reinterpret_cast<void*>(p) << std::dec << '\n';
-    }
-
-
+    shared_resource m_sptr_resource;
 };
  
 
 /* Operators */
 
-    template< class T1, class T2 >
-    bool operator==( const pmimallocator<T1>& lhs, const pmimallocator<T2>& rhs ) throw();
+    template< class Resource1, class Resource2, class T1, class T2 >
+    bool operator==( const pmimallocator<Resource1, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
 
-    template< class T1, class T2 >
-    bool operator==( const pmimallocator<T1>& lhs, const pmimallocator<T2>& rhs ) noexcept;
+    template< class Resource1, class Resource2, class T1, class T2 >
+    constexpr bool operator==( const pmimallocator<Resource2, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
 
-    template< class T1, class T2 >
-    constexpr bool
-        operator==( const pmimallocator<T1>& lhs, const pmimallocator<T2>& rhs ) noexcept;
+    template< class Resource1, class Resource2, class T1, class T2 >
+    bool operator!=( const pmimallocator<Resource1, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
 
-    template< class T1, class T2 >
-    bool operator!=( const pmimallocator<T1>& lhs, const pmimallocator<T2>& rhs ) throw();
 
-    template< class T1, class T2 >
-    bool operator!=( const pmimallocator<T1>& lhs, const pmimallocator<T2>& rhs ) noexcept;
+
+
+
+
+
+// TODO : All of this (optional)
+
+/* Address */
+
+    // pointer address( reference x ) const;
+
+    // pointer address( reference x ) const noexcept;
+
+    // const_pointer address( const_reference x ) const;
+
+    // const_pointer address( const_reference x ) const noexcept;
+
+/* Allocate at least */
+
+    // [[nodiscard]] constexpr std::allocation_result<T*, std::size_t> 
+    // allocate_at_least( std::size_t n );
+
+/* Max size */
+
+    // size_type max_size() const noexcept;
+
+/* Construct */
+
+    // void construct( pointer p, const_reference val );
+
+    // template< class U, class... Args >
+    // void construct( U* p, Args&&... args );
+
+/* Destroy */
+
+    // void destroy( pointer p );
+
+    // template<class U>
+    // void destroy( U* p );

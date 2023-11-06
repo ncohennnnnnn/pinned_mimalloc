@@ -1,60 +1,54 @@
-#pragma once
+#include <cstdlib>
+#include <utility>
 
-#include <pmimalloc.hpp>
+// class backend {
+// public:
+//     int deregister(void);
 
-/** @brief context manages and brings together the choice of the backend,
- * pinning mechanism, and memory type to use.
- * @tparam memory_type_alloc to choose if allocate on device or host
- * @tparam memory_type_pin to choose if mlock or cudaHostRegister pins the memory
+//     static inline int register_memory(void* ptr, std::size_t base_size);
+
+//     template<typename T>
+//     static inline int register_ptr(T* ptr, void* base_ptr, std::size_t base_size);
+// };
+
+template<typename Memory, typename Backend>
+/** @brief Manages and brings together the choice of the registration (Backend)
+ * and pinning mechanism (Memory), and memory type to use (Memory).
  * 
- * TODO: Throw in some concepts to make sure one doesn't cudaMalloc + pin.
+ * TODO: Throw in some concepts.
 */
-template<typename backend, typename memory_type_alloc, typename memory_type_pin = memory_type_alloc>
-class context {
-    using key_t = backend::key_t;
-
+class context : public Memory {
 public:
-    context(std::size_t size, bool pin = true, bool alignement = 0) : m_memory{}, m_backend{}
-    {
-        m_numa_node = m_memory.allocate(size, alignement);
-        if (pin) { pin(); }
-        m_backend.register_memory(m_memory.get_address(), m_memory.get_size());
-    }
+    using memory_t  = Memory;
+    using backend_t = Backend;
+    using key_t     = typename Backend::key_t;
+
+    context()
+    : memory_t{}
+    , m_backend{}
+    {}
+
+    context(memory_t&& mem) 
+    : memory_t{std::move(mem)}
+    , m_backend{&mem} 
+    {}
+
+    context(std::size_t size, std::size_t alignement = 0) 
+    : memory_t{size, alignement}
+    , m_backend{Memory::m_address, Memory::m_size}
+    {}
 
     context(const context& other) = delete;
 
-    ~context() 
-    { 
-        void* ptr = m_memory.get_address();
-        std::size_t size = m_memory.get_size();
-        ~m_backend(); 
-        if (m_pinned) { unpin(); }
-        deallocate(); 
-    }
-
-    void pin() { memory_type_pin::pin_or_unpin(m_memory.get_address(), m_memory.get_size(), true); }
-
-    void unpin() { memory_type_pin::pin_or_unpin(m_memory.get_address(), m_memory.get_size(), false); }
-
-    // void* allocate_aligned(std::size_t size) { return memory_type_alloc::allocated_aligned(size); }
-
-    void deallocate() { return memory_type_alloc::deallocate(); }
-
-    std::size_t get_size(void) { return m_memory.get_size(); }
-
-    void* get_address(void) { return m_memory.get_address(); }
-
-    int get_numa_node(void) { return m_numa_node; }
+    ~context() { ~m_backend(); }
 
     template<typename T>
-    key_t get_key(T* ptr) { 
+    key_t get_key(T* ptr) 
+    { 
         void* ptr_tmp = static_cast<void*>(ptr);
         return m_backend.get_remote_key(ptr_tmp); 
     }
 
-private:
-    bool m_pinned;
-    std::size_t m_numa_node;
-    memory_type_alloc m_memory;
-    backend m_backend;
+protected:
+    backend_t m_backend;
 };
