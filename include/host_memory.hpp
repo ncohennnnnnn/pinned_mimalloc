@@ -37,10 +37,11 @@ int get_node(void* ptr){
     return numa_node[0];
 }
 
+template<typename Base>
 /** @brief Memory living on the host.
  * @fn allocate acts as the body of the constructor.
 */
-class host_memory{
+class host_memory: public Base{
 public:
     host_memory()
     : m_address{nullptr}
@@ -51,14 +52,6 @@ public:
     host_memory(const std::size_t size, const std::size_t alignement = 0) 
     {
         _allocate(m_size, alignement);
-    }
-
-    template<typename T>
-    host_memory(T* ptr, const std::size_t size)
-    : m_address{static_cast<void*>(ptr)}
-    , m_size{size}
-    {
-        m_numa_node = get_node(m_address);
     }
 
     ~host_memory() { _deallocate(); }

@@ -27,8 +27,9 @@
 #include <host_memory.hpp>
 
 
+template<typename Base>
 /** @brief Already allocated memory living on the host. */
-class user_host_memory{
+class user_host_memory: public Base{
 public:
     user_host_memory()
     : m_address{nullptr}

@@ -5,8 +5,9 @@
 #include <cuda_runtime.h>
 
 
+template<typename Base>
 /* TODO: do we need to know the device id ? Finish this struct anyways */
-class user_device_memory{
+class user_device_memory: public Base{
 public:
     user_device_memory()
     : m_address{nullptr}
