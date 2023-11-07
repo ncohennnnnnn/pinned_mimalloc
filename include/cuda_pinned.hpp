@@ -20,8 +20,15 @@ public:
         _pin_or_unpin(Memory::m_address, Memory::m_size, true);
     }
 
-    cuda_pinned(const std::size_t size, std::size_t alignement = 0) 
+    cuda_pinned(const std::size_t size, const std::size_t alignement = 0) 
     : Memory{size, alignement}
+    , m_pinned{false} 
+    {
+        _pin_or_unpin(Memory::m_address, Memory::m_size, true);
+    }
+
+    cuda_pinned(void* ptr, const std::size_t size) 
+    : Memory{ptr, size}
     , m_pinned{false} 
     {
         _pin_or_unpin(Memory::m_address, Memory::m_size, true);

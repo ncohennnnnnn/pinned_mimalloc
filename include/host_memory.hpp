@@ -44,7 +44,8 @@ template<typename Base>
 class host_memory: public Base{
 public:
     host_memory()
-    : m_address{nullptr}
+    : Base{}
+    , m_address{nullptr}
     , m_size{0}
     , m_numa_node{0}
     {}

@@ -33,14 +33,19 @@ public:
     , m_backend{&mem} 
     {}
 
-    context(std::size_t size, std::size_t alignement = 0) 
+    context(const std::size_t size, const std::size_t alignement = 0) 
     : memory_t{size, alignement}
+    , m_backend{Memory::m_address, Memory::m_size}
+    {}
+
+    context(void* ptr, const std::size_t size) 
+    : memory_t{ptr, size}
     , m_backend{Memory::m_address, Memory::m_size}
     {}
 
     context(const context& other) = delete;
 
-    ~context() { ~m_backend(); }
+    ~context() {}
 
     template<typename T>
     key_t get_key(T* ptr) 

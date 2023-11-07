@@ -21,8 +21,15 @@ public:
         _pin_or_unpin(Memory::m_address, Memory::m_size, true);
     }
 
-    pinned(const std::size_t size, std::size_t alignement = 0) 
+    pinned(const std::size_t size, const std::size_t alignement = 0) 
     : Memory{size, alignement}
+    , m_pinned{false} 
+    {
+        _pin_or_unpin(Memory::m_address, Memory::m_size, true);
+    }
+
+    pinned(void* ptr, const std::size_t size) 
+    : Memory{ptr, size}
     , m_pinned{false} 
     {
         _pin_or_unpin(Memory::m_address, Memory::m_size, true);
@@ -36,7 +43,7 @@ public:
     }
 
 private:
-    bool _pin_or_unpin(void* ptr, const size_t size, bool pin)
+    bool _pin_or_unpin(void* ptr, const size_t size, const bool pin)
     {
         int success;
         std::string str;

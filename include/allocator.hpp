@@ -39,12 +39,9 @@ public:
     : m_sptr_resource{r} 
     {}
 
-    template<typename Args>
-    pmimallocator( const resource_builder<resource_type, Args>& rb ) noexcept 
-    // : m_sptr_resource{std::make_shared<rb::resource_t>(rb.build())} 
-    {
-        m_sptr_resource = std::make_shared<resource_type>(rb.build());
-    }
+    pmimallocator( const resource_builder<resource_type>& rb ) noexcept 
+    : m_sptr_resource{rb.sbuild()} 
+    {}
 
     pmimallocator( const resource_type& r ) noexcept 
     // : m_sptr_resource{std::make_shared<rb::resource_t>(rb.build())} 
@@ -60,7 +57,7 @@ public:
 
 /* Destructor */
 
-    ~pmimallocator();
+    ~pmimallocator() {}
 
 /* Allocate */
 

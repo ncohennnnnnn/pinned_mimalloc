@@ -121,7 +121,10 @@ public:
     // }
 
     // Default registration flags for this provider
-    static inline constexpr int flags();
+    static inline constexpr int flags()
+    {
+    return FI_READ | FI_WRITE | FI_RECV | FI_SEND | FI_REMOTE_READ | FI_REMOTE_WRITE;
+    }
 
     // Get the local descriptor of the memory region.
     // static 

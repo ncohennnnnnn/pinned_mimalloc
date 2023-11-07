@@ -6,6 +6,8 @@ public:
 
     backend_none(backend_none&& other) noexcept {}
 
+    backend_none(void* ptr, const std::size_t size) {}
+
     backend_none& operator=(backend_none&& other) noexcept { return *this; }
 
     ~backend_none() noexcept {}

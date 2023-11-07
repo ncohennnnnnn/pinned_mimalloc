@@ -32,14 +32,16 @@ template<typename Base>
 class user_host_memory: public Base{
 public:
     user_host_memory()
-    : m_address{nullptr}
+    : Base{}
+    , m_address{nullptr}
     , m_size{0}
     , m_numa_node{0}
     {}
 
      template<typename T>
     user_host_memory(T* ptr, const std::size_t size)
-    : m_address{static_cast<void*>(ptr)}
+    : Base{}
+    , m_address{static_cast<void*>(ptr)}
     , m_size{size}
     {
         m_numa_node = get_node(m_address);
@@ -47,7 +49,8 @@ public:
     
     template<void*>
     user_host_memory(void* ptr, const std::size_t size)
-    : m_address{ptr}
+    : Base{}
+    , m_address{ptr}
     , m_size{size}
     {
         m_numa_node = get_node(m_address);
@@ -55,14 +58,16 @@ public:
 
     template<typename T>
     user_host_memory(T* ptr, const std::size_t size, const int numa_node)
-    : m_address{static_cast<void*>(ptr)}
+    : Base{}
+    , m_address{static_cast<void*>(ptr)}
     , m_size{size}
     , m_numa_node{numa_node}
     {}
 
     template<void*>
     user_host_memory(void* ptr, const std::size_t size, const int numa_node)
-    : m_address{ptr}
+    : Base{}
+    , m_address{ptr}
     , m_size{size}
     , m_numa_node{numa_node}
     {}

@@ -29,11 +29,6 @@ inline int backend::register_ptr(T* ptr, void* base_ptr, std::size_t base_size) 
     return fi_mr_reg(m_domain, base_ptr, base_size, flags(), offset, 0, 0, &m_region, NULL); 
 }
 
-inline constexpr int backend::flags()
-{
-    return FI_READ | FI_WRITE | FI_RECV | FI_SEND | FI_REMOTE_READ | FI_REMOTE_WRITE;
-}
-
 int backend::_build_base() {
     int ret;
     ret = _build_info();

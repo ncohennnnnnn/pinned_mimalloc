@@ -10,18 +10,21 @@ template<typename Base>
 class user_device_memory: public Base{
 public:
     user_device_memory()
-    : m_address{nullptr}
+    : Base{}
+    , m_address{nullptr}
     , m_size{0}
     {}
 
     user_device_memory(void* ptr, const std::size_t size)
-    : m_address{ptr}
+    : Base{}
+    , m_address{ptr}
     , m_size{size}
     {}
 
     template<typename T>
     user_device_memory(T* ptr, const std::size_t size)
-    : m_address{static_cast<void*>(ptr)}
+    : Base{}
+    , m_address{static_cast<void*>(ptr)}
     , m_size{size}
     {
         /* TODO: Check if memory is actually on device first */

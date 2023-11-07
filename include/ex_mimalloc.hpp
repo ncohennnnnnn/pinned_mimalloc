@@ -32,6 +32,8 @@
 
 class ex_mimalloc {
 public:
+    ex_mimalloc() noexcept = default;
+
     ex_mimalloc(void* ptr, const std::size_t size, const int numa_node);
 
     template<typename Context>

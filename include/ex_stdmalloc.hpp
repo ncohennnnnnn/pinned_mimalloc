@@ -6,6 +6,8 @@
 // TODO: add NUMA-aware allocation ?
 class ex_stdmalloc {
 public:
+    ex_stdmalloc() noexcept = default;
+
     ex_stdmalloc(void* ptr, const std::size_t size, const int numa_node) {}
 
     template<typename Context>

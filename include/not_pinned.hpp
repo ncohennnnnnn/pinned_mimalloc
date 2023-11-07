@@ -10,8 +10,12 @@ public:
     : Memory{std::move(mem)}
     {}
 
-    not_pinned(const std::size_t size, std::size_t alignement = 0) 
+    not_pinned(const std::size_t size, const std::size_t alignement = 0) 
     : Memory{size, alignement}
+    {}
+
+    not_pinned(void* ptr, const std::size_t size) 
+    : Memory{ptr, size}
     {}
 
     not_pinned(not_pinned&&) noexcept = default;

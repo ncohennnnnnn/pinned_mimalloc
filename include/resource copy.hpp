@@ -108,7 +108,12 @@ using default_resource =
         ex_stdmalloc
     >;
 
-using default_args = std::tuple<>;
+using default_args = std::tuple<
+    std::tuple<>,
+    std::tuple<>,
+    std::tuple<>,
+    std::tuple<>,
+    std::tuple<>>;
 
 // replace a resource class template at postion I in a nested resource type
 // example:
@@ -142,19 +147,101 @@ template <std::size_t I, typename Nested, template<typename...> typename R, type
 using replace_resource_t = typename replace_resource<I, Nested, R, M...>::type;
 
 
+// replace the tuple at postion I in a tuple of tuples (which stores arguments to build the nested resource)
+// example:
+// let tuple_orig = {{a_00, a_01, ...}, {a_10, a_11, ...}, {a_20, a_21, ...}, ...}
+// let replacement_tuple = {b0, b1, ...}
+// then
+// replace_arg<1>(std::move(tuple_orig), std::move(replacement_tuple)) -> tuple_new
+// tuple_new == {{a_00, a_01, ...}, {b0, b1, ...}, {a_20, a_21, ...}, ...}
+
+// helper function with indices to look up elements within the tuple `args`
+template<std::size_t I, typename... Ts, typename... Us, std::size_t... Is, std::size_t... Js>
+constexpr inline auto replace_arg(std::tuple<Ts...>&& args, std::tuple<Us...>&& arg, std::index_sequence<Is...>, std::index_sequence<Js...>) {
+    // take items 0, 1, ..., I-1, I+1, I+2, ... from `args` and replace item I with `arg`
+    return std::make_tuple(std::move(std::get<Is>(args))..., std::move(arg), std::move(std::get<I+1+Js>(args))...);
+}
+
+// replace element at position I of `args` with `arg`
+template<std::size_t I, typename... Ts, typename... Us>
+constexpr inline auto replace_arg(std::tuple<Ts...> args, std::tuple<Us...> arg) {
+    // dispatch to helper function by additionally passing indices
+    return replace_arg<I>(std::move(args), std::move(arg), std::make_index_sequence<I>{}, std::make_index_sequence<sizeof...(Ts) - 1 - I>{});
+}
+
+// instantiate a neested resource from arguments in the form of a tuple of tuples 
+// example:
+// let nested = res0<res1<res2<...>, ...>, ...>
+// let args   = {{a_00, a_01, ...}, {a_10, a_11, ...}, {a_20, a_21, ...}, ...}
+// then
+// nested_resource<nested>::instantiate(std::move(args)) evaluates to a concatenation of constructors:
+// return 
+//     res0<res1<res2<...>,...>{
+//         res1<res2<...>,...>{
+//             res2<...>{
+//                 ...,
+//                 a_20, a_21, ...},
+//             a_10, a_11, ...},
+//         a_00, a_01, ...};
+
+// primary class template declaration with Index I defaulted to 0
+template <typename N, std::size_t I = 0>
+struct nested_resource;
+
+// partial specialization: N is a class template with template paramters Inner, More...
+template <template<typename...> typename N, typename Inner, typename... More, std::size_t I>
+struct nested_resource<N<Inner, More...>, I> {
+
+    // instantiate N<Inner, More...> with the element at postion I of the tuple
+    template<typename... Ts>
+    static constexpr auto instantiate(const std::tuple<Ts...>& args) {
+        // dispatch to helper function by additionally passing indices enumerating the arguments within the tuple at postion I in `args`
+        return instantiate(args, std::make_index_sequence<std::tuple_size_v<std::tuple_element_t<I, std::tuple<Ts...>>>>{});
+        // return instantiate(args, std::make_index_sequence<I>{});
+    }
+
+    // helper function with indices to look up elements within tuple extracted with std::get<I>(args)
+    template<typename... Ts, std::size_t... Is>
+    static constexpr auto instantiate(const std::tuple<Ts...>& args, std::index_sequence<Is...>) {
+        auto arg = std::get<I>(args);
+        return N<Inner, More...>{
+            // first constructor argument is the next nested resource (recurse)
+            nested_resource<Inner, I+1>::instantiate(std::move(args)),
+            // further constructor arguments are tagen from tuple of tuples
+            //std::get<Is>(std::get<I>(std::move(args)))...
+            std::get<Is>(std::move(arg))...
+            // std::get<3 - I>(std::move(arg))... // I = 0 corresponds to index 3, I = 1 to index 2, and so on
+
+        };
+    }
+};
+
+// partial specialization when the resource is the base (recursion end point)
+template<std::size_t I>
+struct nested_resource<base, I> {
+
+    // return a default constructed base
+    template<typename... Ts>
+    static constexpr auto instantiate(const std::tuple<Ts...>& args) {
+        return base{};
+    }
+};
+
+// resource_builder class template
+// template type arguments:
+//   - Resource: the type of the resource (nested chain of resources)
+//   - Args: type of arguments to construct the nested resource (tuple of tuples)
+// member functions (apart from build())
+//   - return a new instance of the resource_builder class template with potentially altered template type arguments
+//   - which holds an updated argument tuple
+// the build() member function
+//   - returns a nested resource
+//   - which is constructed from the `args` tuple of tuples
 template<typename Resource = default_resource, typename Args = default_args>
-/** @brief Resource builder, eases the construction of a resource.
- * @tparam Resource: the type of the resource (nested chain of resources).
- * @tparam Args: type of parameters to feed to the resource constructor.
- * @returns a new instance of the resource_builder class template with potentially altered template type arguments 
- * which holds an updated argument tuple.
- * @fn build() @returns a nested resource which is constructed from the `args` tuple.
-*/
 struct resource_builder {
 
-    using resource_t        = Resource;
-    using resource_shared_t = std::shared_ptr<Resource>;
-    using args_t            = Args;
+    using resource_t = Resource;
+    using args_t = Args;
 
     // constexpr resource_builder() noexcept = default;
     constexpr resource_builder() : args{} {} 
@@ -234,24 +321,8 @@ struct resource_builder {
         return updated<3, user_device_memory>(std::make_tuple(ptr, size));
     }
 
-    constexpr resource_shared_t sbuild() const { 
-        return sbuild(std::make_index_sequence<std::tuple_size_v<args_t>>{});        
-    }
+    constexpr resource_t build() const { return nested_resource<resource_t>::instantiate(args); }
 
-    template<std::size_t ...I>
-    constexpr resource_shared_t sbuild(std::index_sequence<I...>) const { 
-        return std::make_shared<resource_t>(std::get<I>(args)...);
-    }
-
-    constexpr resource_t build() const { 
-        return build(std::make_index_sequence<std::tuple_size_v<args_t>>{});        
-    }
-
-    template<std::size_t ...I>
-    constexpr resource_t build(std::index_sequence<I...>) const { 
-        return resource_t(std::get<I>(args)...);
-    }
-    
     // constexpr auto build_any() const { return any_resource{build()}; }
 
 private:
@@ -261,11 +332,14 @@ private:
     constexpr auto updated(Arg arg) const {
         // create a new nested resource type by replacing the old resource class template
         using R_new = replace_resource_t<I, resource_t, R, M...>;
+        // create new arguments by replacing the old argument tuple
+        auto args_new = replace_arg<I>(args, arg);
         // return new resource_builder class template instantiation
-        return resource_builder<R_new, Arg>{std::move(arg)};
+        return resource_builder<R_new, decltype(args_new)>{std::move(args_new)};
     }
 };
 
+// inline constexpr auto resource_builder() { return resource_builder<>{}; }
 
 inline auto host_resource(std::size_t size) {
     static constexpr auto b = resource_builder().pin().use_mimalloc();
