@@ -185,16 +185,16 @@ struct resource_builder {
         return updated<0, resource, ex_stdmalloc>(std::tuple<>{});
     }
 
-    // template<typename Backend>
+#if WITH_MPI || WITH_LIBFABRIC || WITH_UCX
     constexpr auto register_memory(void) const { 
         // registered resources are stored at position 1 in the resource nest
         return updated<1, context, backend>(std::tuple<>{});
     }
+#endif
 
-    // template<typename Backend>
     constexpr auto no_register_memory(void) const {
         // registered resources are stored at position 1 in the resource nest
-        return updated<1, context, backend>(std::tuple<>{});
+        return updated<1, context, backend_none>(std::tuple<>{});
     }
 
     constexpr auto pin(void) const {
@@ -267,12 +267,12 @@ private:
 };
 
 
-inline auto host_resource(std::size_t size) {
-    static constexpr auto b = resource_builder().pin().use_mimalloc();
-    return b.on_host(size).build();
-}
+// inline auto host_resource(std::size_t size) {
+//     static constexpr auto b = resource_builder().pin().use_mimalloc();
+//     return b.on_host(size).build();
+// }
 
-inline auto host_resource(void* ptr, std::size_t size) {
-    static constexpr auto b = resource_builder().pin();
-    return b.use_host_memory(ptr, size).build();
-};
+// inline auto host_resource(void* ptr, std::size_t size) {
+//     static constexpr auto b = resource_builder().pin();
+//     return b.use_host_memory(ptr, size).build();
+// };

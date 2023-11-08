@@ -39,7 +39,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # ------------------------------------------------------------------------------
 # Set the compiler options
 # ------------------------------------------------------------------------------
-option( WITH_MIMALLOC OFF )
+option( WITH_MIMALLOC ON )
 
 # ------------------------------------------------------------------------------
 # Create config file
@@ -107,13 +107,16 @@ endif()
 # Choice of backend provider
 # ------------------------------------------------------------------------------
 set(BACKEND "none" CACHE STRING "Choose the type of the backend.")
-set_property(CACHE BACKEND PROPERTY STRINGS "libfabric" "ucx" "mpi")
+set_property(CACHE BACKEND PROPERTY STRINGS "libfabric" "ucx" "mpi" "none")
 
 string(TOUPPER ${BACKEND} BACKEND_U)
 set(BACKEND_ ${BACKEND_U} CACHE INTERNAL "" FORCE)
 # set(PMIMALLOC_DEVICE "PMIMALLOC_DEVICE_${BACKEND_}" CACHE INTERNAL "" FORCE)
 
+include(GNUInstallDirs)
+
 if (${BACKEND} STREQUAL "libfabric")
+    set( BACKEND_SOURCE src/${BACKEND}/backend.cpp )
     find_package(Libfabric REQUIRED)
     message(STATUS "Found Libfabric : ${LIBFABRIC_FOUND}")
     find_package(Boost REQUIRED)
@@ -125,24 +128,94 @@ if (${BACKEND} STREQUAL "libfabric")
                         )
     set( WITH_LIBFABRIC ON )
     target_compile_definitions( pmimalloc PRIVATE WITH_LIBFABRIC )
+    target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
+    target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
+# building the library
+    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp)
+    set_target_properties(pmimalloc_${BACKEND} PROPERTIES
+        PUBLIC_HEADER include/allocator.h)
+    target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include)
+    target_link_libraries(pmimalloc_${BACKEND} 
+                        fmt::fmt-header-only 
+                        NUMA::libnuma 
+                        CUDA::cudart
+                        libfabric::libfabric
+                        Boost::boost
+    )
+    install(TARGETS pmimalloc_${BACKEND}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 elseif (${BACKEND} STREQUAL "ucx")
+    set( BACKEND_SOURCE src/${BACKEND}/backend.cpp )
     find_package(UCX REQUIRED)
     message(STATUS "Found UCX : ${UCX_FOUND}")
     target_link_libraries(pmimalloc PRIVATE UCX::ucx)
     set( WITH_UCX ON )
     target_compile_definitions( pmimalloc PRIVATE WITH_UCX )
+    target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
+    target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
+# building the library
+    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp)
+    set_target_properties(pmimalloc_${BACKEND} PROPERTIES
+        PUBLIC_HEADER include/allocator.h)
+    target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include)
+    target_link_libraries(pmimalloc_${BACKEND} 
+                        fmt::fmt-header-only 
+                        NUMA::libnuma 
+                        CUDA::cudart
+                        UCX::ucx
+    )
+    install(TARGETS pmimalloc_${BACKEND}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 elseif (${BACKEND} STREQUAL "mpi")
+    set( BACKEND_SOURCE src/${BACKEND}/backend.cpp )
     find_package(MPI REQUIRED)
     message(STATUS "Found MPI : ${MPI_FOUND}")
     target_link_libraries(pmimalloc PRIVATE MPI::MPI_CXX )
     set( WITH_MPI ON )
     target_compile_definitions( pmimalloc PRIVATE WITH_MPI )
+    target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
+    target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
+# building the library
+    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp)
+    set_target_properties(pmimalloc_${BACKEND} PROPERTIES
+        PUBLIC_HEADER include/allocator.h)
+    target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND}. ext/mimalloc/include)
+    target_link_libraries(pmimalloc_${BACKEND} 
+                        fmt::fmt-header-only 
+                        NUMA::libnuma 
+                        CUDA::cudart
+                        MPI::MPI_CXX
+    )
+    install(TARGETS pmimalloc_${BACKEND}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 elseif (${BACKEND} STREQUAL "none")
     message("No backend selected.")
+# building the library
+    add_library(pmimalloc_${BACKEND} SHARED src/ex_mimalloc.cpp)
+    set_target_properties(pmimalloc_${BACKEND} PROPERTIES
+        PUBLIC_HEADER include/allocator.h)
+    target_include_directories(pmimalloc_${BACKEND} PUBLIC include ext/mimalloc/include)
+    target_link_libraries(pmimalloc_${BACKEND} 
+                        fmt::fmt-header-only 
+                        NUMA::libnuma 
+                        CUDA::cudart
+    )
+    install(TARGETS pmimalloc_${BACKEND}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 endif()
 
-target_sources(pmimalloc PRIVATE src/${BACKEND}/backend.cpp)
-target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
 
 # ------------------------------------------------------------------------------
 # CTESTs

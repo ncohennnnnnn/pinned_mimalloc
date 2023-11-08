@@ -9,24 +9,29 @@
 
 #include <resource.hpp>
 
- 
+
 template<typename T, typename Resource>
 class pmimallocator
 {
 public:
 /* Types */
-    using this_type       = pmimallocator<T, Resource>;
-    using resource_type   = Resource;
-    using shared_resource = std::shared_ptr<Resource>;
-    using value_type      = T;
-    using pointer         = T*;
-    using const_pointer   = const T*;
-    using reference       = T&;
-    using const_reference = const T&;
-    using size_type       = std::size_t;
-    using difference_type = std::ptrdiff_t;
-    using is_always_equal = std::true_type;
+    // using base = pmimallocator<T, Resource>;
+    using this_type         = pmimallocator<T, Resource>;
+    using resource_type     = Resource;
+    using shared_resource   = std::shared_ptr<Resource>;
+    using value_type        = T;
+    using pointer           = T*;
+    using const_pointer     = const T*;
+    using void_pointer      = void*;
+    using cons_void_pointer = const void*;
+    using reference         = T&;
+    using const_reference   = const T&;
+    using size_type         = std::size_t;
+    using difference_type   = std::ptrdiff_t;
+    using is_always_equal   = std::true_type;
     using propagate_on_container_move_assignment = std::true_type;
+    using propagate_on_container_copy_assignment = std::true_type;
+    using propagate_on_container_swap            = std::true_type;
 
     template<typename U>
     struct rebind { 
@@ -34,7 +39,6 @@ public:
     };
 
 /* Contructors */
-
     pmimallocator( shared_resource r) noexcept 
     : m_sptr_resource{r} 
     {}
@@ -44,16 +48,22 @@ public:
     {}
 
     pmimallocator( const resource_type& r ) noexcept 
-    // : m_sptr_resource{std::make_shared<rb::resource_t>(rb.build())} 
     {
         m_sptr_resource = std::make_shared<resource_type>(r);
     }
 
-    pmimallocator( const pmimallocator& other ) noexcept = delete;
+    pmimallocator( const pmimallocator& other ) noexcept = default;
+    pmimallocator(pmimallocator&&) noexcept = default;
+    pmimallocator& operator=(const pmimallocator&) noexcept = default;
+    pmimallocator& operator=(pmimallocator&&) noexcept = default;
+
+    pmimallocator select_on_container_copy_construction() { return *this; }
 
 // TODO : take care of this one
     template< class U >
-    pmimallocator( const pmimallocator<Resource, U>& other ) noexcept = delete;
+    pmimallocator( const pmimallocator<U, Resource>& other ) 
+    : m_sptr_resource{other.m_sptr_resource}
+    {} 
 
 /* Destructor */
 
@@ -77,20 +87,23 @@ public:
 
 		
 private:
+    template<typename U, typename R>
+    friend class pmimallocator;
+    
     shared_resource m_sptr_resource;
 };
  
 
 /* Operators */
 
-    template< class Resource1, class Resource2, class T1, class T2 >
-    bool operator==( const pmimallocator<Resource1, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
+template< class Resource1, class Resource2, class T1, class T2 >
+bool operator==( const pmimallocator<Resource1, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
 
-    template< class Resource1, class Resource2, class T1, class T2 >
-    constexpr bool operator==( const pmimallocator<Resource2, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
+template< class Resource1, class Resource2, class T1, class T2 >
+constexpr bool operator==( const pmimallocator<Resource2, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
 
-    template< class Resource1, class Resource2, class T1, class T2 >
-    bool operator!=( const pmimallocator<Resource1, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
+template< class Resource1, class Resource2, class T1, class T2 >
+bool operator!=( const pmimallocator<Resource1, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
 
 
 

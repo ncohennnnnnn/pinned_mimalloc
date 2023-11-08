@@ -37,4 +37,5 @@ int backend::_build_base() {
     if (ret) { perror("fi_getfabric"); return ret;}
     ret = _build_domain();
     if (ret) { perror("fi_getdomain"); return ret;}
+    return 0;
 }
