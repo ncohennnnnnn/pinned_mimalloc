@@ -1,5 +1,5 @@
 template<class Memory>
-/** @brief Host or device memory taht is not to be pinned. */
+/** @brief Host or device memory that is not to be pinned. */
 class not_pinned : public Memory {
 public:
     not_pinned()

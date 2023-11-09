@@ -6,19 +6,20 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
     if (size != 0) {
         /** @brief Create the ex_mimalloc arena
         * @param exclusive allows allocations if specifically for this arena
+        * @param is_committed set to false
         * 
         * TODO: @param is_large could be an option
         */
-        bool success = mi_manage_os_memory_ex(ptr, size, true, false, false, numa_node, true, &m_arena_id);
+        bool success = mi_manage_os_memory_ex(ptr, size, false, false, false, numa_node, false, &m_arena_id);
         if (!success) {
             fmt::print("{} : [error] ex_mimalloc failed to create the arena. \n", ptr);
-        }
+        } else { fmt::print("{} : Mimalloc arena created \n", ptr); }
 
         /* Associate a heap to the arena */
         m_heap = mi_heap_new_in_arena(m_arena_id);
         if (m_heap == nullptr) {
             fmt::print("{} : [error] ex_mimalloc failed to create the heap. \n", ptr);
-        }
+        } else { fmt::print("{} : Mimalloc heap created \n", ptr); }
 
         /* Do not use OS memory for allocation (but only pre-allocated arena). */
         mi_option_set(mi_option_limit_os_alloc, 1);

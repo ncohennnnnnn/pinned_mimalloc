@@ -82,10 +82,29 @@ message(STATUS "Found NUMA: ${NUMA_FOUND}")
 find_package(CUDAToolkit REQUIRED)
 message(STATUS "Found CUDA : ${CUDA_FOUND}")
 
+# ---------------------------------------------------------------------
+# Build type
+# ---------------------------------------------------------------------
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# ---------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------
+set(ENABLE_LOGGING OFF CACHE BOOL "print logging info to cerr")
+
+# ---------------------------------------------------------------------
+# Generate config file
+# ---------------------------------------------------------------------
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/include/config.hpp @ONLY)
+
 # ------------------------------------------------------------------------------
 # Building executable target
 # ------------------------------------------------------------------------------
-add_executable( pmimalloc src/test.cpp)
+add_executable( pmimalloc src/test.cpp src/numa.cpp src/log.cpp)
 target_compile_definitions(pmimalloc 
                         PRIVATE 
                             WITH_MIMALLOC
@@ -103,6 +122,25 @@ if (WITH_MIMALLOC)
     add_subdirectory(ext/mimalloc)
     target_sources(pmimalloc PRIVATE src/ex_mimalloc.cpp)
 endif()
+
+# ---------------------------------------------------------------------
+# NUMA setup
+# ---------------------------------------------------------------------
+if(UNIX AND NOT APPLE)
+find_package(NUMA REQUIRED)
+target_link_libraries(pmimalloc PRIVATE NUMA::libnuma)
+set(NUMA_THROWS OFF CACHE BOOL "True if numa_tools may throw during initialization")
+if (NUMA_THROWS)
+    target_compile_definitions(pmimalloc PRIVATE NUMA_THROWS)
+endif()
+set(NUMA_FOR_LOCAL ON CACHE BOOL "Use numa_tools for local node allocations")
+if (NUMA_FOR_LOCAL)
+    target_compile_definitions(pmimalloc PRIVATE NUMA_FOR_LOCAL)
+endif()
+else()
+message(WARNING "${CMAKE_PROJECT_NAME} configured without NUMA support on Mac")
+endif()
+
 # ------------------------------------------------------------------------------
 # Choice of backend provider
 # ------------------------------------------------------------------------------
@@ -131,7 +169,7 @@ if (${BACKEND} STREQUAL "libfabric")
     target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
     target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
 # building the library
-    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp)
+    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp src/numa.cpp src/log.cpp)
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.h)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include)
@@ -157,7 +195,7 @@ elseif (${BACKEND} STREQUAL "ucx")
     target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
     target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
 # building the library
-    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp)
+    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp src/numa.cpp src/log.cpp)
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.h)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include)
@@ -182,7 +220,7 @@ elseif (${BACKEND} STREQUAL "mpi")
     target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
     target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
 # building the library
-    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp)
+    add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp src/numa.cpp src/log.cpp)
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.h)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND}. ext/mimalloc/include)
@@ -200,7 +238,7 @@ elseif (${BACKEND} STREQUAL "mpi")
 elseif (${BACKEND} STREQUAL "none")
     message("No backend selected.")
 # building the library
-    add_library(pmimalloc_${BACKEND} SHARED src/ex_mimalloc.cpp)
+    add_library(pmimalloc_${BACKEND} SHARED src/ex_mimalloc.cpp src/numa.cpp src/log.cpp)
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.h)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include ext/mimalloc/include)

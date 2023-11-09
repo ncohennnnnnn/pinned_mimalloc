@@ -6,7 +6,7 @@
 // uint32_t ext_heap_sz = 1 << ;
 
 
-// #define PMIMALLOC_ENABLE_DEVICE 0
-/* #undef PMIMALLOC_DEVICE_RUNTIME */
-#define 
-/* #undef PMIMALLOC_ENABLE_LOGGING */
+// #define ENABLE_DEVICE 0
+/* #undef DEVICE_RUNTIME */
+// #define 
+#define ENABLE_LOGGING

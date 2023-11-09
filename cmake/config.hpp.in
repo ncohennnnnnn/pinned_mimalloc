@@ -6,7 +6,7 @@
 // uint32_t ext_heap_sz = 1 << @EXT_HEAP_SZ_EXP@;
 
 
-// #cmakedefine01 PMIMALLOC_ENABLE_DEVICE
-#cmakedefine PMIMALLOC_DEVICE_RUNTIME "@PMIMALLOC_DEVICE_RUNTIME_@"
-#define @PMIMALLOC_DEVICE@
-// #cmakedefine PMIMALLOC_ENABLE_LOGGING
+// #cmakedefine01 ENABLE_DEVICE
+// #cmakedefine DEVICE_RUNTIME "@DEVICE_RUNTIME_@"
+// #define @DEVICE@
+#cmakedefine ENABLE_LOGGING

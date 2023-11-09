@@ -13,8 +13,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <numa.h>
-#include <numaif.h>
+#include <numa.hpp>
 
 #include <fmt/core.h>
 
@@ -44,7 +43,9 @@ public:
     , m_address{static_cast<void*>(ptr)}
     , m_size{size}
     {
-        m_numa_node = get_node(m_address);
+        // numa_tools n;
+        // m_numa_node = numa_tools::get_node(m_address);
+        m_numa_node = 0;
     }
     
     template<void*>
@@ -53,7 +54,9 @@ public:
     , m_address{ptr}
     , m_size{size}
     {
-        m_numa_node = get_node(m_address);
+        // numa_tools n;
+        // m_numa_node = numa_tools::get_node(m_address);
+        m_numa_node = 0;
     }
 
     template<typename T>

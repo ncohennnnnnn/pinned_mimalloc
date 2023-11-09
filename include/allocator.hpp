@@ -59,7 +59,6 @@ public:
 
     pmimallocator select_on_container_copy_construction() { return *this; }
 
-// TODO : take care of this one
     template< class U >
     pmimallocator( const pmimallocator<U, Resource>& other ) 
     : m_sptr_resource{other.m_sptr_resource}
@@ -104,12 +103,6 @@ constexpr bool operator==( const pmimallocator<Resource2, T1>& lhs, const pmimal
 
 template< class Resource1, class Resource2, class T1, class T2 >
 bool operator!=( const pmimallocator<Resource1, T1>& lhs, const pmimallocator<Resource2, T2>& rhs ) = delete;
-
-
-
-
-
-
 
 // TODO : All of this (optional)
 

@@ -110,14 +110,15 @@ using default_resource =
 
 using default_args = std::tuple<>;
 
-// replace a resource class template at postion I in a nested resource type
-// example:
-// let res_orig = res0<res1<res2<res3<...>, ...>, ...>, ...>
-// let MyReplacementResource = MyReplacementResource<NestedResource, U1, U2, ...>
-// where U1, U2, ... are additional template arguments
-// then
-// replace_resource_t<2, res_orig, MyReplacementResource, U1, U2, ...> -> res_new
-// res_new == res0<res1<MyReplacementResource<res3<...>, U1, U2, ...>, ...>, ...>
+/*--------------------------------------------------------------------------------
+  Replace a resource class template at postion I in a nested resource type. 
+  Example:
+    res_orig = res0<res1<res2<res3<...>, ...>, ...>, ...>
+    MyReplacementResource = MyReplacementResource<NestedResource, U1, U2, ...>
+    where U1, U2, ... are additional template arguments. Then :
+    replace_resource_t<2, res_orig, MyReplacementResource, U1, U2, ...> -> res_new
+    res_new == res0<res1<MyReplacementResource<res3<...>, U1, U2, ...>, ...>, ...>
+  --------------------------------------------------------------------------------*/
 
 // primary class template declaration
 template <std::size_t I, typename Nested, template<typename...> typename R, typename... M>
@@ -267,12 +268,16 @@ private:
 };
 
 
-// inline auto host_resource(std::size_t size) {
-//     static constexpr auto b = resource_builder().pin().use_mimalloc();
-//     return b.on_host(size).build();
-// }
+// template<typename Resource_Builder>
+// struct Res{
+//     using type  = decltype(Resource_Builder::build());
+//     using stype = std::shared_ptr<type>;
 
-// inline auto host_resource(void* ptr, std::size_t size) {
-//     static constexpr auto b = resource_builder().pin();
-//     return b.use_host_memory(ptr, size).build();
+//     Res(Resource_Builder&& rb)
+//     : obj{rb.build()}
+//     , sptr{std::make_shared<type>(obj)}
+//     { }
+
+//     type  obj;
+//     stype sptr;
 // };
