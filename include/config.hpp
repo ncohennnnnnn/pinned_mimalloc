@@ -9,4 +9,4 @@
 // #define ENABLE_DEVICE 0
 /* #undef DEVICE_RUNTIME */
 // #define 
-#define ENABLE_LOGGING
+/* #undef ENABLE_LOGGING */

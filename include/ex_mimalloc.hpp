@@ -47,7 +47,7 @@ public:
 
     void* reallocate(void* ptr, std::size_t size);
 
-    void deallocate(void* ptr, std::size_t size = 0);
+    void  deallocate(void* ptr, std::size_t size = 0);
 
     std::size_t get_usable_size(void* ptr) { return mi_usable_size(ptr); }
 

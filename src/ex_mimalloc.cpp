@@ -10,7 +10,7 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
         * 
         * TODO: @param is_large could be an option
         */
-        bool success = mi_manage_os_memory_ex(ptr, size, false, false, false, numa_node, false, &m_arena_id);
+        bool success = mi_manage_os_memory_ex(ptr, size, true, false, true, numa_node, true, &m_arena_id);
         if (!success) {
             fmt::print("{} : [error] ex_mimalloc failed to create the arena. \n", ptr);
         } else { fmt::print("{} : Mimalloc arena created \n", ptr); }
@@ -40,7 +40,7 @@ void* ex_mimalloc::allocate(const std::size_t size, const std::size_t alignment)
     } else {
         rtn = mi_heap_malloc(m_heap, size);
     }
-    fmt::print("{} : Memory allocated. \n", rtn);
+    // fmt::print("{} : Memory allocated with size {} \n", rtn, size);
     return rtn;
 }
 
@@ -53,7 +53,7 @@ void ex_mimalloc::deallocate(void* ptr, std::size_t size ) {
         if (unlikely(size)) { mi_free_size(ptr, size ); }
         else { mi_free(ptr); }
     }
-    fmt::print("{} : Memory deallocated. \n", ptr);
+    // fmt::print("{} : Memory deallocated. \n", ptr);
 }
 
 // void ex_mimalloc::win_free() {

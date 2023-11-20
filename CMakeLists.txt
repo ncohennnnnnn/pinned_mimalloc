@@ -19,7 +19,7 @@ enable_testing()
 # ------------------------------------------------------------------------------
 # Set C++ standard to C++17
 # ------------------------------------------------------------------------------
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # ------------------------------------------------------------------------------
 # Set PIC
@@ -82,6 +82,9 @@ message(STATUS "Found NUMA: ${NUMA_FOUND}")
 find_package(CUDAToolkit REQUIRED)
 message(STATUS "Found CUDA : ${CUDA_FOUND}")
 
+find_package(HWLOC REQUIRED)
+message(STATUS "Found HWLOC : ${HWLOC_FOUND}")
+
 # ---------------------------------------------------------------------
 # Build type
 # ---------------------------------------------------------------------
@@ -104,22 +107,37 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.hpp.in
 # ------------------------------------------------------------------------------
 # Building executable target
 # ------------------------------------------------------------------------------
-add_executable( pmimalloc src/test.cpp src/numa.cpp src/log.cpp)
-target_compile_definitions(pmimalloc 
-                        PRIVATE 
-                            WITH_MIMALLOC
-                        )
+add_executable( pmimalloc 
+            src/test.cpp 
+            src/thread_affinity.cpp 
+            src/task_group.cpp
+            src/numa.cpp 
+            # src/log.cpp 
+            )
 target_include_directories( pmimalloc PUBLIC include )
 target_link_libraries( pmimalloc 
-                    PUBLIC 
-                        mimalloc
+                    # PUBLIC 
+                    #     mimalloc
                     PRIVATE 
                         fmt::fmt-header-only 
                         NUMA::libnuma 
                         CUDA::cudart
+                        HWLOC::libhwloc
                     )
+target_compile_definitions(pmimalloc PRIVATE WITH_MIMALLOC )
+
+# ---------------------------------------------------------------------
+# Logging and mimalloc options
+# ---------------------------------------------------------------------
+if(ENABLE_LOGGING)
+    add_executable( pmimalloc src/log.cpp)
+endif()
+
 if (WITH_MIMALLOC)
+    # target_compile_definitions(pmimalloc PRIVATE -DMI_OVERRIDE=OFF )
+    set(MI_OVERRIDE OFF)
     add_subdirectory(ext/mimalloc)
+    target_link_libraries( pmimalloc PUBLIC mimalloc )
     target_sources(pmimalloc PRIVATE src/ex_mimalloc.cpp)
 endif()
 
@@ -133,7 +151,7 @@ set(NUMA_THROWS OFF CACHE BOOL "True if numa_tools may throw during initializati
 if (NUMA_THROWS)
     target_compile_definitions(pmimalloc PRIVATE NUMA_THROWS)
 endif()
-set(NUMA_FOR_LOCAL ON CACHE BOOL "Use numa_tools for local node allocations")
+set(NUMA_FOR_LOCAL OFF CACHE BOOL "Use numa_tools for local node allocations")
 if (NUMA_FOR_LOCAL)
     target_compile_definitions(pmimalloc PRIVATE NUMA_FOR_LOCAL)
 endif()
@@ -238,20 +256,28 @@ elseif (${BACKEND} STREQUAL "mpi")
 elseif (${BACKEND} STREQUAL "none")
     message("No backend selected.")
 # building the library
-    add_library(pmimalloc_${BACKEND} SHARED src/ex_mimalloc.cpp src/numa.cpp src/log.cpp)
+    add_library(pmimalloc_${BACKEND} 
+            SHARED 
+                src/ex_mimalloc.cpp 
+                src/numa.cpp 
+                src/log.cpp
+                src/thread_affinity.cpp 
+                src/task_group.cpp
+                )
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
-        PUBLIC_HEADER include/allocator.h)
+        PUBLIC_HEADER include/allocator.hpp)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include ext/mimalloc/include)
     target_link_libraries(pmimalloc_${BACKEND} 
                         fmt::fmt-header-only 
                         NUMA::libnuma 
                         CUDA::cudart
+                        HWLOC::libhwloc
     )
     install(TARGETS pmimalloc_${BACKEND}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
+    # install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
+    #     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 endif()
 
 

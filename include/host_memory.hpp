@@ -49,7 +49,7 @@ public:
     : Base{}
     , m_address{nullptr}
     , m_size{0}
-    , m_numa_node{0}
+    , m_numa_node{-1}
     {}
 
     host_memory(const std::size_t size, const std::size_t alignement = 0) 
@@ -83,7 +83,7 @@ private:
     // numa_tools n;
     // m_numa_node = numa_tools::get_node(m_address);
     // fmt::print("{} : Pointer is on numa node : {} \n", m_address, m_numa_node);
-    m_numa_node = 0;
+    m_numa_node = -1;
 }
 
     void _deallocate() { std::free(m_raw_address); }
@@ -106,12 +106,11 @@ private:
 
         // Calculate the aligned pointer within the allocated memory block.
         uintptr_t unaligned_ptr = reinterpret_cast<uintptr_t>(original_ptr);
-        uintptr_t misalignment = unaligned_ptr % alignment;
-        uintptr_t adjustment = (misalignment == 0) ? 0 : (alignment - misalignment);
-        uintptr_t aligned_ptr = unaligned_ptr + adjustment;
-
+        uintptr_t misalignment  = unaligned_ptr % alignment;
+        uintptr_t adjustment    = (misalignment == 0) ? 0 : (alignment - misalignment);
+        uintptr_t aligned_ptr   = unaligned_ptr + adjustment;
         // Store the original pointer before the aligned pointer.
-        uintptr_t* ptr_storage = reinterpret_cast<uintptr_t*>(aligned_ptr) - 1;
+        uintptr_t* ptr_storage  = reinterpret_cast<uintptr_t*>(aligned_ptr) - 1;
         *ptr_storage = reinterpret_cast<uintptr_t>(original_ptr);
 
         void* ret = reinterpret_cast<void*>(aligned_ptr);

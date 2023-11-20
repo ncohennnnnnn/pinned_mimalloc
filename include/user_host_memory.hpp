@@ -34,7 +34,7 @@ public:
     : Base{}
     , m_address{nullptr}
     , m_size{0}
-    , m_numa_node{0}
+    , m_numa_node{-1}
     {}
 
      template<typename T>
@@ -45,7 +45,7 @@ public:
     {
         // numa_tools n;
         // m_numa_node = numa_tools::get_node(m_address);
-        m_numa_node = 0;
+        m_numa_node = -1;
     }
     
     template<void*>
@@ -56,7 +56,7 @@ public:
     {
         // numa_tools n;
         // m_numa_node = numa_tools::get_node(m_address);
-        m_numa_node = 0;
+        m_numa_node = -1;
     }
 
     template<typename T>

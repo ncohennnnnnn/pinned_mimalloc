@@ -1,6 +1,7 @@
 #include <log.hpp>
 #include <iostream>
 #include <mutex>
+#include <sstream>
 
 namespace
 {
