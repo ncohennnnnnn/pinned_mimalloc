@@ -50,20 +50,20 @@ int main() {
     // fmt::print("\n");
 
 /* Build resource and allocator via resource_builder */
-    // resource_builder RB;
-    // auto rb = RB.use_mimalloc().pin()/*.register_memory()*/.on_host(mem);
-    // using resource_t = decltype(rb.build());
-    // using alloc_t    = pmimallocator<int, resource_t>;
-    // alloc_t a(rb);
-    // fmt::print("\n\n");
+    resource_builder RB;
+    auto rb = RB.use_mimalloc().pin().register_memory().on_host(mem);
+    using resource_t = decltype(rb.build());
+    using alloc_t    = pmimallocator<int, resource_t>;
+    alloc_t a(rb);
+    fmt::print("\n\n");
 
 /* Build an arena, then 1 heap per thread, allocate with them */
     // heap_per_thread(mem);
 
 /* Fill an array through several threads and deallocate all on thread 0*/
-    // fill_array_multithread(2,5,a);
+    fill_array_multithread(2,5,a);
 
-/* Standard vector */
+/* Standard vector (doesn't work) */
     // std_vector(a);
 
 /* Buffer filling */
