@@ -1,16 +1,13 @@
 #include <cstdint>
-// #include <cstdlib>
 #include <stdexcept>
-// #include <sys/mman.h>
-// #include <cstring>
 #include <iostream>
 #include <unistd.h>
-// #include <errno.h>
+#include <utility>
 
 #include <mimalloc.h>
-#include <mimalloc/atomic.h>
 #include <mimalloc/internal.h>
-#include <../src/bitmap.h>
+// #include <mimalloc/atomic.h>
+// #include <../src/bitmap.h>
 
 #if (defined(__GNUC__) && (__GNUC__ >= 3)) || defined(__IBMC__) || \
     defined(__INTEL_COMPILER) || defined(__clang__)
@@ -29,6 +26,11 @@
 #endif
 #endif
 
+
+static inline void* get_prim_tls_slot(size_t slot) noexcept;
+mi_threadid_t get_thread_id(void) noexcept;
+
+const std::size_t nb_threads = 3;
 
 class ex_mimalloc {
 public:
@@ -52,9 +54,9 @@ public:
     std::size_t get_usable_size(void* ptr) { return mi_usable_size(ptr); }
 
 private:
+    // std::pair<int,int> m_threads[nb_threads];
+    std::pair<int,std::thread::id> m_threads[nb_threads];
     mi_arena_id_t m_arena_id{};
-    mi_heap_t* m_heap = nullptr;
+    mi_heap_t* m_heap[nb_threads];
     mi_stats_t m_stats;
 };
-
-

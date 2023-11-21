@@ -56,7 +56,6 @@ public:
     resource(const std::size_t size, const std::size_t alignement = 0)
     : context_t{size, alignement}
     , m_malloc{Context::m_address, Context::m_size, Context::m_numa_node}
-        
     {}
 
     // resource(void* ptr, const std::size_t size)

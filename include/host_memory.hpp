@@ -38,7 +38,7 @@
 
 void* aligned_alloc(size_t alignment, size_t size);
 
-/*TODO: per-thread version where m_size = size * (std::thread::hardware_concurrency() + 1) */
+/*TODO: per-thread version where m_size = size * nb_threads */
 template<typename Base>
 /** @brief Memory living on the host.
  * @fn allocate acts as the body of the constructor.
@@ -118,7 +118,6 @@ private:
 
         return ret;
     }
-
 
 protected:
     void* m_address;
