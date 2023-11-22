@@ -45,7 +45,7 @@ option( WITH_MIMALLOC ON )
 # Create config file
 # ------------------------------------------------------------------------------
 configure_file(
-    ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in 
+    ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in
     ${PROJECT_SOURCE_DIR}/include/config.hpp
 )
 
@@ -104,38 +104,39 @@ set(ENABLE_LOGGING OFF CACHE BOOL "print logging info to cerr")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.hpp.in
     ${CMAKE_CURRENT_BINARY_DIR}/include/config.hpp @ONLY)
 
+# ---------------------------------------------------------------------
+# Logging and mimalloc options
+# ---------------------------------------------------------------------
+if(ENABLE_LOGGING)
+    set(PMI_LOG_SRC src/log.cpp)
+endif()
+
 # ------------------------------------------------------------------------------
 # Building executable target
 # ------------------------------------------------------------------------------
-add_executable( pmimalloc 
-            src/test.cpp 
-            src/thread_affinity.cpp 
+add_executable( pmimalloc
+            src/test.cpp
+            src/thread_affinity.cpp
             src/task_group.cpp
-            src/numa.cpp 
-            # src/log.cpp 
+            src/numa.cpp
+            ${PMI_LOG_SRC}
             )
 target_include_directories( pmimalloc PUBLIC include )
-target_link_libraries( pmimalloc 
-                    # PUBLIC 
+target_link_libraries( pmimalloc
+                    # PUBLIC
                     #     mimalloc
-                    PRIVATE 
-                        fmt::fmt-header-only 
-                        NUMA::libnuma 
+                    PRIVATE
+                        fmt::fmt-header-only
+                        NUMA::libnuma
                         CUDA::cudart
                         HWLOC::libhwloc
                     )
 target_compile_definitions(pmimalloc PRIVATE WITH_MIMALLOC )
 
-# ---------------------------------------------------------------------
-# Logging and mimalloc options
-# ---------------------------------------------------------------------
-if(ENABLE_LOGGING)
-    add_executable( pmimalloc src/log.cpp)
-endif()
 
 if (WITH_MIMALLOC)
     # target_compile_definitions(pmimalloc PRIVATE -DMI_OVERRIDE=OFF )
-    set(MI_OVERRIDE OFF)
+#    set(MI_OVERRIDE OFF)
     add_subdirectory(ext/mimalloc)
     target_link_libraries( pmimalloc PUBLIC mimalloc )
     target_sources(pmimalloc PRIVATE src/ex_mimalloc.cpp)
@@ -177,9 +178,9 @@ if (${BACKEND} STREQUAL "libfabric")
     message(STATUS "Found Libfabric : ${LIBFABRIC_FOUND}")
     find_package(Boost REQUIRED)
     message(STATUS "Found Boost : ${BOOST_FOUND}")
-    target_link_libraries(pmimalloc 
-                        PRIVATE 
-                            libfabric::libfabric 
+    target_link_libraries(pmimalloc
+                        PRIVATE
+                            libfabric::libfabric
                             Boost::boost
                         )
     set( WITH_LIBFABRIC ON )
@@ -188,15 +189,17 @@ if (${BACKEND} STREQUAL "libfabric")
     target_include_directories( pmimalloc PUBLIC src/${BACKEND} )
 # building the library
     add_library(pmimalloc_${BACKEND} SHARED src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp src/numa.cpp src/log.cpp)
+    target_compile_definitions(pmimalloc_${BACKEND} PUBLIC WITH_MIMALLOC )
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.h)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include)
-    target_link_libraries(pmimalloc_${BACKEND} 
-                        fmt::fmt-header-only 
-                        NUMA::libnuma 
+    target_link_libraries(pmimalloc_${BACKEND}
+                        fmt::fmt-header-only
+                        NUMA::libnuma
                         CUDA::cudart
                         libfabric::libfabric
                         Boost::boost
+                        mimalloc
     )
     install(TARGETS pmimalloc_${BACKEND}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -217,9 +220,9 @@ elseif (${BACKEND} STREQUAL "ucx")
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.h)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include)
-    target_link_libraries(pmimalloc_${BACKEND} 
-                        fmt::fmt-header-only 
-                        NUMA::libnuma 
+    target_link_libraries(pmimalloc_${BACKEND}
+                        fmt::fmt-header-only
+                        NUMA::libnuma
                         CUDA::cudart
                         UCX::ucx
     )
@@ -242,9 +245,9 @@ elseif (${BACKEND} STREQUAL "mpi")
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.h)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND}. ext/mimalloc/include)
-    target_link_libraries(pmimalloc_${BACKEND} 
-                        fmt::fmt-header-only 
-                        NUMA::libnuma 
+    target_link_libraries(pmimalloc_${BACKEND}
+                        fmt::fmt-header-only
+                        NUMA::libnuma
                         CUDA::cudart
                         MPI::MPI_CXX
     )
@@ -256,20 +259,20 @@ elseif (${BACKEND} STREQUAL "mpi")
 elseif (${BACKEND} STREQUAL "none")
     message("No backend selected.")
 # building the library
-    add_library(pmimalloc_${BACKEND} 
-            SHARED 
-                src/ex_mimalloc.cpp 
-                src/numa.cpp 
+    add_library(pmimalloc_${BACKEND}
+            SHARED
+                src/ex_mimalloc.cpp
+                src/numa.cpp
                 src/log.cpp
-                src/thread_affinity.cpp 
+                src/thread_affinity.cpp
                 src/task_group.cpp
                 )
     set_target_properties(pmimalloc_${BACKEND} PROPERTIES
         PUBLIC_HEADER include/allocator.hpp)
     target_include_directories(pmimalloc_${BACKEND} PUBLIC include ext/mimalloc/include)
-    target_link_libraries(pmimalloc_${BACKEND} 
-                        fmt::fmt-header-only 
-                        NUMA::libnuma 
+    target_link_libraries(pmimalloc_${BACKEND}
+                        fmt::fmt-header-only
+                        NUMA::libnuma
                         CUDA::cudart
                         HWLOC::libhwloc
     )
@@ -280,6 +283,7 @@ elseif (${BACKEND} STREQUAL "none")
     #     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 endif()
 
+add_library(pmimalloc_target ALIAS pmimalloc_${BACKEND})
 
 # ------------------------------------------------------------------------------
 # CTESTs

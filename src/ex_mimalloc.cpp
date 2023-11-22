@@ -5,80 +5,91 @@
 
 // void mi_heap_destroy(mi_heap_t* heap);
 // using unique_tls_heap = std::unique_ptr<mi_heap_t, void (*)(mi_heap_t *)>;
-thread_local mi_heap_t *thread_local_ex_mimalloc_heap;
-//{nullptr,
-//                                                           mi_heap_destroy};
+thread_local mi_heap_t* thread_local_ex_mimalloc_heap;
 
-ex_mimalloc::ex_mimalloc(void *ptr, const std::size_t size,
-                         const int numa_node) {
-  if (size != 0) {
-    /** @brief Create the ex_mimalloc arena
+ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
+{
+    if (size != 0)
+    {
+        /** @brief Create the ex_mimalloc arena
      * @param exclusive allows allocations if specifically for this arena
      * @param is_committed set to false
      *
      * TODO: @param is_large could be an option
      */
-    bool success = mi_manage_os_memory_ex(ptr, size, true, false, true,
-                                          numa_node, true, &m_arena_id);
-    if (!success) {
-      fmt::print("{} : [error] ex_mimalloc failed to create the arena. \n",
-                 ptr);
-    } else {
-      fmt::print("{} : Mimalloc arena created \n", ptr);
+        bool success =
+            mi_manage_os_memory_ex(ptr, size, true, false, true, numa_node, true, &m_arena_id);
+        if (!success)
+        {
+            fmt::print("{} : [error] ex_mimalloc failed to create the arena. \n", ptr);
+        }
+        else
+        {
+            fmt::print("{} : Mimalloc arena created \n", ptr);
+        }
+
+        /* Do not use OS memory for allocation (but only pre-allocated arena). */
+        // mi_option_set(mi_option_limit_os_alloc, 1);
+    }
+}
+
+template <typename Context>
+ex_mimalloc::ex_mimalloc(const Context& C)
+{
+    ex_mimalloc{C.get_address(), C.get_size(), C.get_numa_node()};
+}
+
+void* ex_mimalloc::allocate(const std::size_t size, const std::size_t alignment)
+{
+    if (!thread_local_ex_mimalloc_heap)
+    {
+        auto my_delete = [](mi_heap_t* heap) {
+            fmt::print("ex_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
+            // mi_heap_destroy(heap);
+        };
+        thread_local_ex_mimalloc_heap = mi_heap_new_in_arena(m_arena_id);
+        //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
+        fmt::print(
+            "ex_mimalloc:: New thread local heap {} ", (void*) (thread_local_ex_mimalloc_heap));
     }
 
-    /* Do not use OS memory for allocation (but only pre-allocated arena). */
-    // mi_option_set(mi_option_limit_os_alloc, 1);
-  }
-}
-
-template <typename Context> ex_mimalloc::ex_mimalloc(const Context &C) {
-  ex_mimalloc{C.get_address(), C.get_size(), C.get_numa_node()};
-}
-
-void *ex_mimalloc::allocate(const std::size_t size,
-                            const std::size_t alignment) {
-
-  if (!thread_local_ex_mimalloc_heap) {
-    auto my_delete = [](mi_heap_t *heap) {
-      fmt::print("ex_mimalloc:: NOT Deleting heap (it's safe) {}\n",
-                 (void *)(heap));
-      // mi_heap_destroy(heap);
-    };
-    thread_local_ex_mimalloc_heap = mi_heap_new_in_arena(m_arena_id);
-    //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
-    fmt::print("ex_mimalloc:: New thread local heap {} ",
-               (void *)(thread_local_ex_mimalloc_heap));
-  }
-
-  void *rtn = nullptr;
-  if (unlikely(alignment)) {
-    rtn =
-        mi_heap_malloc_aligned(thread_local_ex_mimalloc_heap, size, alignment);
-  } else {
-    rtn = mi_heap_malloc(thread_local_ex_mimalloc_heap, size);
-  }
-  fmt::print("{} : Memory allocated with size {} from heap {} \n", rtn, size,
-             (void *)(thread_local_ex_mimalloc_heap));
-  return rtn;
-}
-
-void *ex_mimalloc::reallocate(void *ptr, std::size_t size) {
-  if (!thread_local_ex_mimalloc_heap) {
-    std::cout << "ERROR!!! how can this happpen" << std::endl;
-  }
-  return mi_heap_realloc(thread_local_ex_mimalloc_heap, ptr, size);
-}
-
-void ex_mimalloc::deallocate(void *ptr, std::size_t size) {
-  if (likely(ptr)) {
-    if (unlikely(size)) {
-      mi_free_size(ptr, size);
-    } else {
-      mi_free(ptr);
+    void* rtn = nullptr;
+    if (unlikely(alignment))
+    {
+        rtn = mi_heap_malloc_aligned(thread_local_ex_mimalloc_heap, size, alignment);
     }
-  }
-  fmt::print("{} : Memory deallocated. \n", ptr);
+    else
+    {
+        rtn = mi_heap_malloc(thread_local_ex_mimalloc_heap, size);
+    }
+    //    fmt::print("{} : Memory allocated with size {} from heap {} \n", rtn, size,
+    //        (void*) (thread_local_ex_mimalloc_heap));
+    return rtn;
+}
+
+void* ex_mimalloc::reallocate(void* ptr, std::size_t size)
+{
+    if (!thread_local_ex_mimalloc_heap)
+    {
+        std::cout << "ERROR!!! how can this happpen" << std::endl;
+    }
+    return mi_heap_realloc(thread_local_ex_mimalloc_heap, ptr, size);
+}
+
+void ex_mimalloc::deallocate(void* ptr, std::size_t size)
+{
+    if (likely(ptr))
+    {
+        if (unlikely(size))
+        {
+            mi_free_size(ptr, size);
+        }
+        else
+        {
+            mi_free(ptr);
+        }
+    }
+    //    fmt::print("{} : Memory deallocated. \n", ptr);
 }
 
 // static inline void* get_prim_tls_slot(size_t slot) noexcept {
