@@ -23,7 +23,8 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
             [this, ptr](int thread_id) mutable 
             {
                 // m_threads[thread_id] = std::make_pair(thread_id,get_thread_id());
-                m_threads[thread_id] = std::make_pair(thread_id,std::this_thread::get_id());
+                m_threads[thread_id] = std::make_pair(thread_id,_mi_thread_id());
+                // m_threads[thread_id] = std::make_pair(thread_id,std::this_thread::get_id());
                 m_heap[thread_id] = mi_heap_new_in_arena(m_arena_id);
                 if (m_heap[thread_id] == nullptr) {
                     fmt::print("{} : [error] ex_mimalloc failed to create the heap on thread {}. \n"
@@ -47,7 +48,8 @@ ex_mimalloc::ex_mimalloc( const Context& C )
 void* ex_mimalloc::allocate(const std::size_t size, const std::size_t alignment) {
     void* rtn = nullptr;
     // int thread = get_thread_id();
-    std::thread::id thread_id = std::this_thread::get_id();
+    // std::thread::id thread_id = std::this_thread::get_id();
+    mi_threadid_t thread_id = _mi_thread_id();
     int id = nb_threads;
     for(int i = 0; i<nb_threads; ++i){ 
         if (thread_id == std::get<1>(m_threads[i])) { id = i; }
@@ -64,7 +66,8 @@ void* ex_mimalloc::allocate(const std::size_t size, const std::size_t alignment)
 
 void* ex_mimalloc::reallocate(void* ptr, std::size_t size ) {
     // mi_threadid_t thread = get_thread_id();
-    std::thread::id thread_id = std::this_thread::get_id();
+    // std::thread::id thread_id = std::this_thread::get_id();
+    mi_threadid_t thread_id = _mi_thread_id();
     int id = nb_threads;
     for(int i = 0; i<nb_threads; ++i){ 
         if (thread_id == std::get<1>(m_threads[i])) { id = i; }
