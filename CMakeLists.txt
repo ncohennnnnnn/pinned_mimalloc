@@ -135,9 +135,16 @@ target_compile_definitions(pmimalloc PRIVATE WITH_MIMALLOC )
 
 
 if (WITH_MIMALLOC)
+    include(external)
+    set(MI_OVERRIDE OFF)
+    get_external_project(
+      PROJECT_NAME "mimalloc"
+      GIT_REPO "https://github.com/microsoft/mimalloc"
+      GIT_TAG "master"
+      PREFER_LOCAL
+    )
+
     # target_compile_definitions(pmimalloc PRIVATE -DMI_OVERRIDE=OFF )
-#    set(MI_OVERRIDE OFF)
-    add_subdirectory(ext/mimalloc)
     target_link_libraries( pmimalloc PUBLIC mimalloc )
     target_sources(pmimalloc PRIVATE src/ex_mimalloc.cpp)
 endif()
