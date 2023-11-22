@@ -53,68 +53,72 @@ struct thing {
 int main() {
   std::size_t mem = 1ull << 30;
 
-  /* Build resource and allocator by hand */
-  // using resource_t = resource <context <pinned <host_memory <base>> ,
-  // backend> , ex_mimalloc> ; using alloc_t = pmimallocator<int, resource_t>;
-  // auto res = std::make_shared<resource_t>(mem);
-  // alloc_t a(res);
-  // fmt::print("\n");
-
   /* Build resource and allocator via resource_builder */
-
-  //  resource_builder RB;
-  //  auto rb = RB.use_mimalloc().pin().register_memory().on_host(mem);
-  //  using resource_t = decltype(rb.build());
-  //  using alloc_t = pmimallocator<int, resource_t>;
-  //  alloc_t a(rb);
-  //  fmt::print("\n\n");
-
-  /* Build an arena, then 1 heap per thread, allocate with them */
-  heap_per_thread(mem);
-
-  /* Fill an array through several threads and deallocate all on thread 0*/
-  // fill_array_multithread(2, 5, a);
-
-  /* Standard vector (doesn't work) */
-  // std_vector(a);
-
-  /* Buffer filling */
-  // fill_buffer(a);
-
-  /* Usual allocation */
-  // usual_alloc(a);
+#define USE_ALLOC
+#ifdef USE_ALLOC
+  resource_builder RB;
+  auto rb = RB.use_mimalloc().pin().register_memory().on_host(mem);
+  using resource_t = decltype(rb.build());
+  using alloc_t = pmimallocator<std::uint32_t, resource_t>;
+  alloc_t a(rb);
+  fmt::print("\n\n");
+  {
+    /* Fill an array through several threads and deallocate all on thread 0*/
+    fill_array_multithread(2, 5, a);
+  }
+#else
+  { heap_per_thread(mem); }
+#endif
+  fmt::print("\n\n");
+  mi_collect(false);
+  mi_stats_print(NULL);
 }
 
 /* Fill an array through several threads and deallocate all on thread 0*/
 template <typename Alloc>
 void fill_array_multithread(const int nb_threads, const int nb_allocs,
                             Alloc a) {
-  int *p[nb_threads * nb_allocs];
-  std::barrier sync_point(nb_threads);
-  threading::task_system ts(nb_threads, true);
-  threading::parallel_for::apply(
-      nb_threads, &ts, [a, &p, &sync_point, &nb_allocs](int thread_id) mutable {
-        fmt::print("Thread {} \n", thread_id);
-        int idx;
-        for (std::size_t i = 0; i < nb_allocs; ++i) {
-          idx = nb_allocs * thread_id + i;
-          p[idx] = a.allocate(2);
-          fmt::print("{} : ptr allocated \n", static_cast<void *>(p[idx]));
-          *p[idx] = idx;
-        }
-        sync_point.arrive_and_wait();
-      });
-  for (int i = 0; i < nb_allocs - 1; ++i) {
-    if (p[i + 1] - p[i] != 1) {
-      a.deallocate(p[i]);
+  std::vector<uint32_t *> ptrs(nb_threads * nb_allocs);
+  std::vector<std::thread> threads;
+
+  for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id) {
+    threads.push_back(std::thread{
+        [&a, &nb_allocs, &ptrs](int thread_id) mutable {
+          std::cout << thread_id << ": " << std::this_thread::get_id()
+                    << std::endl;
+
+          fmt::print("Thread {} \n", thread_id);
+          for (int i = 0; i < nb_allocs; ++i) {
+            ptrs[thread_id * nb_allocs + i] = a.allocate(32);
+            *ptrs[thread_id * nb_allocs + i] = thread_id * nb_allocs + i;
+          }
+        },
+        thread_id});
+  }
+
+  for (auto &t : threads)
+    t.join();
+  std::cout << "finished" << std::endl;
+
+  std::cout << "Clearing memory " << std::endl;
+
+  for (int i = 0; i < nb_allocs * nb_threads; ++i) {
+    int thread_id = i / nb_allocs;
+    // fmt::print("{} \n", thread_id);
+    if (*ptrs[i] == i) {
+      a.deallocate(ptrs[i]);
     } else {
-      fmt::print("[ERROR] from thread {} \n", floor(i / nb_allocs));
+      fmt::print("[ERROR] from thread {}, expected {}, got {} \n", thread_id, i,
+                 *ptrs[i]);
     }
   }
-  a.deallocate(p[nb_allocs]);
-  fmt::print("\n\n");
-  mi_collect(true);
-  mi_stats_print(NULL);
+
+  std::cout << "Checked ok" << std::endl;
+  threads.clear();
+
+  //  fmt::print("\n\n");
+  //  mi_collect(false);
+  //  mi_stats_print(NULL);
 }
 
 /* Standard vector */
@@ -158,7 +162,7 @@ template <typename Alloc> void usual_alloc(Alloc a) {
 
 /* Build an arena, then 1 heap per thread, allocate with them */
 void heap_per_thread(std::size_t mem) {
-  mi_option_set(mi_option_limit_os_alloc, 1);
+  // mi_option_set(mi_option_limit_os_alloc, 1);
   host_memory<base> hm(mem);
   void *ptr = hm.get_address();
   constexpr std::size_t nb_threads = 20;
@@ -176,30 +180,38 @@ void heap_per_thread(std::size_t mem) {
     fmt::print("{} : Mimalloc arena created \n", ptr);
   }
   fmt::print("\n");
+  std::vector<std::thread> threads;
 
-  /*
+// #define USE_DODGY_TASK_LIB
+#ifdef USE_DODGY_TASK_LIB
+  {
     threading::task_system ts(nb_threads, true);
     threading::parallel_for::apply(
         nb_threads, &ts,
-        [&heaps, m_arena_id, &nb_allocs,
-         &ptrs ](int thread_id) mutable {
-          std::cout << std::this_thread::get_id() << std::endl;
+        [&heaps, m_arena_id, &nb_allocs, &ptrs](int thread_id) mutable {
+          std::cout << "Thread Id " << std::this_thread::get_id() << std::endl;
 
-          heaps[thread_id] = mi_heap_new_in_arena(m_arena_id);
+          if (!thread_local_heap_) {
+            std::cout << "New heap on thread " << thread_id << std::endl;
+            auto my_delete = [](mi_heap_t *heap) {
+              std::cout << "NOT Deleting heap (it's safe) " << heap
+                        << std::endl;
+              // mi_heap_destroy(heap);
+            };
+            thread_local_heap_ =
+                unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
+          }
           for (int i = 0; i < nb_allocs; ++i) {
-            ptrs[thread_id * nb_allocs + i] =
-                static_cast<uint32_t *>(mi_heap_malloc(
-                    heaps[thread_id], 32));
+            ptrs[thread_id * nb_allocs + i] = static_cast<uint32_t *>(
+                mi_heap_malloc(thread_local_heap_.get(), 32));
             *ptrs[thread_id * nb_allocs + i] = thread_id * nb_allocs + i;
           }
         });
-  */
-
-  std::vector<std::thread> threads;
+  }
+#else
   for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id) {
     threads.push_back(std::thread{
-        [&heaps, m_arena_id, &nb_allocs,
-         &ptrs /*, &sync_point*/](int thread_id) mutable {
+        [&heaps, m_arena_id, &nb_allocs, &ptrs](int thread_id) mutable {
           std::cout << thread_id << ": " << std::this_thread::get_id()
                     << std::endl;
           // std::cout << _mi_thread_id() << std::endl;
@@ -216,9 +228,8 @@ void heap_per_thread(std::size_t mem) {
           }
 
           for (int i = 0; i < nb_allocs; ++i) {
-            ptrs[thread_id * nb_allocs + i] =
-                static_cast<uint32_t *>(mi_heap_malloc(
-                    /*heaps[thread_id]*/ thread_local_heap_.get(), 32));
+            ptrs[thread_id * nb_allocs + i] = static_cast<uint32_t *>(
+                mi_heap_malloc(thread_local_heap_.get(), 32));
             *ptrs[thread_id * nb_allocs + i] = thread_id * nb_allocs + i;
           }
         },
@@ -227,6 +238,7 @@ void heap_per_thread(std::size_t mem) {
   for (auto &t : threads)
     t.join();
   std::cout << "finished" << std::endl;
+#endif
 
   std::cout << "Clearing memory " << std::endl;
 
@@ -243,11 +255,7 @@ void heap_per_thread(std::size_t mem) {
 
   threads.clear();
 
-  for (int i = 0; i < nb_threads; ++i) {
-    // mi_heap_destroy(heaps[i]);
-  }
-
-  fmt::print("\n\n");
-  mi_collect(true);
-  mi_stats_print(NULL);
+  //  fmt::print("\n\n");
+  //  mi_collect(false);
+  //  mi_stats_print(NULL);
 }
