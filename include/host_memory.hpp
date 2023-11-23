@@ -52,7 +52,7 @@ public:
     , m_numa_node{-1}
     {}
 
-    host_memory(const std::size_t size, const std::size_t alignement = 0) 
+    host_memory(const std::size_t size, const std::size_t alignement = 0)
     {
         fmt::print("About to allocate memory of size {} \n", size);
         _allocate(size, alignement);
@@ -60,13 +60,13 @@ public:
     }
 
     ~host_memory()
-    { 
+    {
 //#ifndef MI_SKIP_COLLECT_ON_EXIT
-        int val = 1; // mi_option_get(mi_option_limit_os_alloc);
+        int val = 0; // mi_option_get(mi_option_limit_os_alloc);
 //#endif
         if (!val) {
-        _deallocate(); 
-            fmt::print("{} : Memory std::free\n", m_address);
+            _deallocate();
+            fmt::print("{} : Memory std::freed\n", m_address);
         }
         else {
             fmt::print("{} : Skipped std::free (mi_option_limit_os_alloc)\n", m_address);
@@ -94,7 +94,18 @@ private:
     m_numa_node = -1;
 }
 
-    void _deallocate() { std::free(m_raw_address); }
+#define PMIMALLOC_USE_MMAP
+
+    void _deallocate() {
+#ifdef PMIMALLOC_USE_MMAP
+    if (munmap(m_raw_address, m_size)!=0) {
+        std::cerr << "munmap failed." << std::endl;
+    }
+    fmt::print("{} : Memory munmap\n", m_raw_address);
+#else
+        std::free(m_raw_address);
+#endif
+    }
 
     void* _aligned_alloc(size_t alignment, size_t size) {
         if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
@@ -104,13 +115,25 @@ private:
 
         // Allocate memory with extra space to store the original pointer.
         size_t total_size = size + alignment - 1;
+#ifdef PMIMALLOC_USE_MMAP
+        fmt::print("{:0x} : mmap size\n", total_size);
+        void * original_ptr = mmap(0, total_size,
+            PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (original_ptr == MAP_FAILED) {
+            std::cerr << "mmap failed." << std::endl;
+            original_ptr = nullptr;
+        }
+        fmt::print("{} : Memory mmap\n", original_ptr);
+#else
         void* original_ptr = std::malloc(total_size);
-        fmt::print("{} : Raw pointer \n", original_ptr);
+        fmt::print("{} : Memory std::malloc\n", original_ptr);
+#endif
         m_raw_address = original_ptr;
 
         if (original_ptr == nullptr) {
             return nullptr;
         }
+        std::cout << std::endl;
 
         // Calculate the aligned pointer within the allocated memory block.
         uintptr_t unaligned_ptr = reinterpret_cast<uintptr_t>(original_ptr);
@@ -118,8 +141,8 @@ private:
         uintptr_t adjustment    = (misalignment == 0) ? 0 : (alignment - misalignment);
         uintptr_t aligned_ptr   = unaligned_ptr + adjustment;
         // Store the original pointer before the aligned pointer.
-        uintptr_t* ptr_storage  = reinterpret_cast<uintptr_t*>(aligned_ptr) - 1;
-        *ptr_storage = reinterpret_cast<uintptr_t>(original_ptr);
+//        uintptr_t* ptr_storage  = reinterpret_cast<uintptr_t*>(aligned_ptr) - 1;
+//        *ptr_storage = reinterpret_cast<uintptr_t>(original_ptr);
 
         void* ret = reinterpret_cast<void*>(aligned_ptr);
         fmt::print("{} : Aligned pointer \n", ret);
