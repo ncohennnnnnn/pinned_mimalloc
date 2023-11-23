@@ -61,8 +61,16 @@ public:
 
     ~host_memory()
     { 
+//#ifndef MI_SKIP_COLLECT_ON_EXIT
+        int val = 1; // mi_option_get(mi_option_limit_os_alloc);
+//#endif
+        if (!val) {
         _deallocate(); 
-        fmt::print("{} : Memory std::freed\n", m_address); 
+            fmt::print("{} : Memory std::free\n", m_address);
+        }
+        else {
+            fmt::print("{} : Skipped std::free (mi_option_limit_os_alloc)\n", m_address);
+        }
     }
 
     void* get_address(void) { return m_address; }

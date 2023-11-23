@@ -6,25 +6,6 @@
 
 #include <mimalloc.h>
 #include <mimalloc/internal.h>
-// #include <mimalloc/atomic.h>
-// #include <../src/bitmap.h>
-
-#if (defined(__GNUC__) && (__GNUC__ >= 3)) || defined(__IBMC__) || \
-    defined(__INTEL_COMPILER) || defined(__clang__)
-#ifndef unlikely
-#define unlikely(x_) __builtin_expect(!!(x_), 0)
-#endif
-#ifndef likely
-#define likely(x_) __builtin_expect(!!(x_), 1)
-#endif
-#else
-#ifndef unlikely
-#define unlikely(x_) (x_)
-#endif
-#ifndef likely
-#define likely(x_) (x_)
-#endif
-#endif
 
 class ex_mimalloc {
 public:

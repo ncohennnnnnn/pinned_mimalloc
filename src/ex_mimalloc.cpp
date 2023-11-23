@@ -3,9 +3,26 @@
 
 #include <fmt/core.h>
 
+#if (defined(__GNUC__) && (__GNUC__ >= 3)) || defined(__IBMC__) || defined(__INTEL_COMPILER) ||    \
+    defined(__clang__)
+# ifndef unlikely
+#  define unlikely(x_) __builtin_expect(!!(x_), 0)
+# endif
+# ifndef likely
+#  define likely(x_) __builtin_expect(!!(x_), 1)
+# endif
+#else
+# ifndef unlikely
+#  define unlikely(x_) (x_)
+# endif
+# ifndef likely
+#  define likely(x_) (x_)
+# endif
+#endif
+
 // void mi_heap_destroy(mi_heap_t* heap);
 // using unique_tls_heap = std::unique_ptr<mi_heap_t, void (*)(mi_heap_t *)>;
-thread_local mi_heap_t* thread_local_ex_mimalloc_heap;
+thread_local mi_heap_t* thread_local_ex_mimalloc_heap{nullptr};
 
 ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
 {
@@ -27,7 +44,6 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
         {
             fmt::print("{} : Mimalloc arena created \n", ptr);
         }
-
         /* Do not use OS memory for allocation (but only pre-allocated arena). */
         // mi_option_set(mi_option_limit_os_alloc, 1);
     }

@@ -9,6 +9,7 @@ cmake_policy(SET CMP0028 NEW) # Double colon in target name means ALIAS or
 cmake_policy(SET CMP0060 NEW) # Link libraries by full path even in implicit
 # directories
 cmake_policy(SET CMP0074 NEW) # find_package uses XXX_ROOT vars
+cmake_policy(SET CMP0144 NEW) # find_package xxx_ROOT cases sensitivity
 
 # ------------------------------------------------------------------------------
 # Enable testing
@@ -127,7 +128,8 @@ get_external_project(
   "https://github.com/microsoft/mimalloc"
   GIT_TAG
   "master"
-  PREFER_LOCAL)
+  PREFER_LOCAL # we want to debug mimalloc, so prefer building locally
+)
 
 # ------------------------------------------------------------------------------
 # Choice of backend provider
