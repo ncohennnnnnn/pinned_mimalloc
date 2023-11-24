@@ -36,7 +36,6 @@
 //     return numa_node[0];
 // }
 
-void* aligned_alloc(size_t alignment, size_t size);
 
 /*TODO: per-thread version where m_size = size * nb_threads */
 template<typename Base>
@@ -59,9 +58,9 @@ public:
 
     ~host_memory()
     {
-//#ifndef MI_SKIP_COLLECT_ON_EXIT
+#ifndef MI_SKIP_COLLECT_ON_EXIT
         int val = 0; // mi_option_get(mi_option_limit_os_alloc);
-//#endif
+#endif
         if (!val) {
             _deallocate();
         }
@@ -79,39 +78,40 @@ public:
 private:
     void _allocate(const std::size_t size, const std::size_t alignement = 0) {
 #if WITH_MIMALLOC
-    m_address = _aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size);
+        _aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size);
 #else
-    if (alignement != 0) { m_address = _aligned_alloc(alignement, size); }
-    else { 
-        m_address = std::malloc(size); 
-        fmt::print("{} : Memory of size {} std::mallocated \n", m_address, size);
-    }
+        if (alignement != 0) { _aligned_alloc(alignement, size); }
+        else { 
+            m_address     = std::malloc(size); 
+            m_raw_address = m_address;
+            m_size        = size;
+            m_total_size  = size;
+            fmt::print("{} : Memory of size {} std::mallocated \n", m_address, size);
+        }
 #endif
-    m_size = size;
-    // numa_tools n;
-    // m_numa_node = numa_tools::get_node(m_address);
-    // fmt::print("{} : Pointer is on numa node : {} \n", m_address, m_numa_node);
-    m_numa_node = -1;
-}
+        // numa_tools n;
+        // m_numa_node = numa_tools::get_node(m_address);
+        // fmt::print("{} : Pointer is on numa node : {} \n", m_address, m_numa_node);
+        m_numa_node = -1;
+    }
 
 #define PMIMALLOC_USE_MMAP
-
     void _deallocate() {
 #ifdef PMIMALLOC_USE_MMAP
-    if (munmap(m_raw_address, m_size)!=0) {
-        std::cerr << "munmap failed \n" << std::endl;
-    }
-    fmt::print("{} : Memory munmaped \n", m_raw_address);
+        if (munmap(m_raw_address, m_total_size)!=0) {
+            std::cerr << "munmap failed \n" << std::endl;
+        }
+        fmt::print("{} : Memory munmaped \n", m_raw_address);
 #else
         std::free(m_raw_address);
-        fmt::print("{} : Memory std::freed \n", m_address);
+        fmt::print("{} : Memory std::freed \n", m_raw_address);
 #endif
     }
 
-    void* _aligned_alloc(size_t alignment, size_t size) {
+    void _aligned_alloc(size_t alignment, size_t size) {
         if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
             // Alignment must be a power of 2 and non-zero.
-            return nullptr;
+            return;
         }
 
         // Allocate memory with extra space to store the original pointer.
@@ -129,9 +129,10 @@ private:
         fmt::print("{} : Memory of size {} std::mallocated \n", original_ptr, total_size);
 #endif
         m_raw_address = original_ptr;
+        m_total_size  = total_size;
 
         if (original_ptr == nullptr) {
-            return nullptr;
+            return;
         }
         std::cout << std::endl;
 
@@ -147,12 +148,14 @@ private:
         void* ret = reinterpret_cast<void*>(aligned_ptr);
         fmt::print("{} : Aligned pointer \n", ret);
 
-        return ret;
+        m_address = ret;
     }
+
+    std::size_t m_total_size;
+    void* m_raw_address;
 
 protected:
     void* m_address;
     std::size_t m_size;
     int m_numa_node;
-    void* m_raw_address = nullptr;
 };
