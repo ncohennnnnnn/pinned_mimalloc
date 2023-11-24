@@ -26,7 +26,7 @@ public:
 
     void  deallocate(void* ptr, std::size_t size = 0);
 
-    std::size_t get_usable_size(void* ptr) { return mi_usable_size(ptr); }
+    // std::size_t get_usable_size();
 
 private:
     mi_arena_id_t m_arena_id{};

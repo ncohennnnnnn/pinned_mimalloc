@@ -96,6 +96,11 @@ public:
         return std::numeric_limits<size_type>::max() / sizeof(T);
     }
 
+// /* Usable size (only with mimalloc) */
+// #if WITH_MIMALLOC
+//     std::size_t get_usable_size() { return m_sptr_resource->get_usable_size(); }
+// #endif
+
 /* Construct */
 
     // void construct( pointer p, const_reference val );

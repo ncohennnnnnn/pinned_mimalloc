@@ -6,14 +6,13 @@
 #include <math.h>
 
 /* TODO:
-    - single arena with big size or one arena per thread ?
+    - how to extend the arena size ?
     - numa node stuff, steal it from Fabian and get how to use it
     - for now, MI_OVERRIDE has to be set to OFF otherwise we can't use
-   std::aligned_alloc, try to find a way to either write ur own aligned_alloc or
-   keep it like this.
+      std::malloc ----> solved by using mmap
     - device stuff
-        - get the device id in the device_memory constructor
-        - check if ptr is actually on device for user_device_memory
+      - get the device id in the device_memory constructor
+      - check if ptr is actually on device for user_device_memory
     - RMA keys functions, the ones for individual objects (with offset)
     - UCX
     - MPI
@@ -51,27 +50,32 @@ struct thing {
 };
 
 int main() {
+  // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
   std::size_t mem = 1ull << 30;
 
   /* Build resource and allocator via resource_builder */
-#define USE_ALLOC
-#ifdef USE_ALLOC
+// #define USE_ALLOC
+// #ifdef USE_ALLOC
   resource_builder RB;
-  auto rb = RB.use_mimalloc().pin().register_memory().on_host(mem);
+  auto rb = RB.use_mimalloc().pin()/*.register_memory()*/.on_host(mem);
   using resource_t = decltype(rb.build());
-  using alloc_t = pmimallocator<std::uint32_t, resource_t>;
+  using alloc_t = pmimallocator<int, resource_t>;
   alloc_t a(rb);
   fmt::print("\n\n");
-  {
-    /* Fill an array through several threads and deallocate all on thread 0*/
-    fill_array_multithread(2, 5, a);
-  }
-#else
-  { heap_per_thread(mem); }
-#endif
+
+
+//   {
+//     /* Fill an array through several threads and deallocate all on thread 0*/
+//     fill_array_multithread(2, 5, a);
+//   }
+// #else
+//   { heap_per_thread(mem); }
+// #endif
+  // usual_alloc(a);
+
   fmt::print("\n\n");
-  mi_collect(false);
-  mi_stats_print(NULL);
+  // mi_collect(false);
+  // mi_stats_print(NULL);
 }
 
 /* Fill an array through several threads and deallocate all on thread 0*/

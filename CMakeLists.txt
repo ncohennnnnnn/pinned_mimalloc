@@ -9,7 +9,7 @@ cmake_policy(SET CMP0028 NEW) # Double colon in target name means ALIAS or
 cmake_policy(SET CMP0060 NEW) # Link libraries by full path even in implicit
 # directories
 cmake_policy(SET CMP0074 NEW) # find_package uses XXX_ROOT vars
-cmake_policy(SET CMP0144 NEW) # find_package xxx_ROOT cases sensitivity
+# cmake_policy(SET CMP0144 NEW) # find_package xxx_ROOT cases sensitivity
 
 # ------------------------------------------------------------------------------
 # Enable testing
@@ -121,6 +121,7 @@ endif()
 # ---------------------------------------------------------------------
 include(external)
 set(MI_OVERRIDE OFF)
+set(MI_SKIP_COLLECT_ON_EXIT OFF)
 get_external_project(
   PROJECT_NAME
   "mimalloc"
@@ -143,9 +144,12 @@ string(TOUPPER ${BACKEND} BACKEND_U)
 
 # set(BACKEND_ ${BACKEND_U} CACHE INTERNAL "" FORCE) set(PMIMALLOC_DEVICE
 # "PMIMALLOC_DEVICE_${BACKEND_}" CACHE INTERNAL "" FORCE)
-
-set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp src/numa.cpp
-                   ${PMI_LOG_SRC})
+if(${BACKEND} STREQUAL "none")
+    set(BACKEND_SOURCE src/ex_mimalloc.cpp src/numa.cpp ${PMI_LOG_SRC})
+else()
+    set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp src/numa.cpp
+                    ${PMI_LOG_SRC})
+endif()
 add_library(pmimalloc_${BACKEND} SHARED ${BACKEND_SOURCE})
 target_compile_definitions(pmimalloc_${BACKEND} PUBLIC WITH_MIMALLOC
                                                        WITH_${BACKEND_U})

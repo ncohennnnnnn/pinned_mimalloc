@@ -55,12 +55,11 @@ public:
 
     resource(const std::size_t size, const std::size_t alignement = 0)
     : context_t{size, alignement}
-    , m_malloc{Context::m_address, Context::m_size, Context::m_numa_node}
+    , m_malloc{context_t::m_address, context_t::m_size, context_t::m_numa_node}
     {}
-
     // resource(void* ptr, const std::size_t size)
     // : context_t{ptr, size}
-    // , m_malloc{Context::m_address, Context::m_size, Context::m_numa_node}
+    // , m_malloc{context_t::m_address, context_t::m_size, context_t::m_numa_node}
     // {}
 
     void* allocate(const std::size_t size, const std::size_t alignment = 0)
@@ -78,10 +77,10 @@ public:
         return m_malloc.deallocate(ptr, size); 
     }
 
-    std::size_t get_usable_size(void* ptr)
-    {
-        return m_malloc.get_usable_size(ptr);
-    }
+    // std::size_t get_usable_size()
+    // {
+    //     return m_malloc.get_usable_size();
+    // }
 
 protected:
     malloc_t m_malloc;

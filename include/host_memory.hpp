@@ -54,9 +54,7 @@ public:
 
     host_memory(const std::size_t size, const std::size_t alignement = 0)
     {
-        fmt::print("About to allocate memory of size {} \n", size);
         _allocate(size, alignement);
-        fmt::print("{} : Memory std::mallocated\n", m_address);
     }
 
     ~host_memory()
@@ -66,10 +64,9 @@ public:
 //#endif
         if (!val) {
             _deallocate();
-            fmt::print("{} : Memory std::freed\n", m_address);
         }
         else {
-            fmt::print("{} : Skipped std::free (mi_option_limit_os_alloc)\n", m_address);
+            fmt::print("{} : Skipped std::free (mi_option_limit_os_alloc) \n", m_address);
         }
     }
 
@@ -85,7 +82,10 @@ private:
     m_address = _aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size);
 #else
     if (alignement != 0) { m_address = _aligned_alloc(alignement, size); }
-    else { m_address = std::malloc(size); }
+    else { 
+        m_address = std::malloc(size); 
+        fmt::print("{} : Memory of size {} std::mallocated \n", m_address, size);
+    }
 #endif
     m_size = size;
     // numa_tools n;
@@ -99,11 +99,12 @@ private:
     void _deallocate() {
 #ifdef PMIMALLOC_USE_MMAP
     if (munmap(m_raw_address, m_size)!=0) {
-        std::cerr << "munmap failed." << std::endl;
+        std::cerr << "munmap failed \n" << std::endl;
     }
-    fmt::print("{} : Memory munmap\n", m_raw_address);
+    fmt::print("{} : Memory munmaped \n", m_raw_address);
 #else
         std::free(m_raw_address);
+        fmt::print("{} : Memory std::freed \n", m_address);
 #endif
     }
 
@@ -116,17 +117,16 @@ private:
         // Allocate memory with extra space to store the original pointer.
         size_t total_size = size + alignment - 1;
 #ifdef PMIMALLOC_USE_MMAP
-        fmt::print("{:0x} : mmap size\n", total_size);
         void * original_ptr = mmap(0, total_size,
             PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (original_ptr == MAP_FAILED) {
-            std::cerr << "mmap failed." << std::endl;
+            std::cerr << "mmap failed \n" << std::endl;
             original_ptr = nullptr;
         }
-        fmt::print("{} : Memory mmap\n", original_ptr);
+        fmt::print("{} : Memory of size {} mmaped \n", original_ptr, total_size);
 #else
         void* original_ptr = std::malloc(total_size);
-        fmt::print("{} : Memory std::malloc\n", original_ptr);
+        fmt::print("{} : Memory of size {} std::mallocated \n", original_ptr, total_size);
 #endif
         m_raw_address = original_ptr;
 
