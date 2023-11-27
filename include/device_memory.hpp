@@ -87,7 +87,7 @@ private:
         size_t total_size = size + alignment - 1;
         m_total_size = total_size;
         cudaMalloc(&m_raw_address, m_total_size);
-        fmt::print("{} : Memory of size {} std::mallocated \n", m_raw_address, m_total_size);
+        fmt::print("{} : Memory of size {} cudaMallocated \n", m_raw_address, m_total_size);
 
         if (m_raw_address == nullptr) {
             return;
@@ -116,4 +116,5 @@ private:
 protected:
     void* m_address;
     std::size_t m_size;
+    int m_numa_node = -1;
 };

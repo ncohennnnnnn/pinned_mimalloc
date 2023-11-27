@@ -120,8 +120,8 @@ endif()
 # mimalloc must be found or compiled in place
 # ---------------------------------------------------------------------
 include(external)
-set(MI_OVERRIDE OFF)
-set(MI_SKIP_COLLECT_ON_EXIT OFF)
+# set(MI_OVERRIDE OFF)
+# set(MI_SKIP_COLLECT_ON_EXIT OFF)
 get_external_project(
   PROJECT_NAME
   "mimalloc"

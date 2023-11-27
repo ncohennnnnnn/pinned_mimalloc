@@ -54,6 +54,8 @@ public:
     host_memory(const std::size_t size, const std::size_t alignement = 0)
     {
         _allocate(size, alignement);
+        // fmt::print("Host memory created with m_address : {}, m_size : {}, m_raw_address : {}, m_total_size : {} \n"
+        //     , m_address, m_size, m_raw_address, m_total_size);
     }
 
     ~host_memory()
@@ -84,7 +86,6 @@ private:
         else { 
             m_address     = std::malloc(size); 
             m_raw_address = m_address;
-            m_size        = size;
             m_total_size  = size;
             fmt::print("{} : Memory of size {} std::mallocated \n", m_address, size);
         }
@@ -93,6 +94,7 @@ private:
         // m_numa_node = numa_tools::get_node(m_address);
         // fmt::print("{} : Pointer is on numa node : {} \n", m_address, m_numa_node);
         m_numa_node = -1;
+        m_size      = size;
     }
 
 #define PMIMALLOC_USE_MMAP
@@ -120,7 +122,7 @@ private:
         void * original_ptr = mmap(0, total_size,
             PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (original_ptr == MAP_FAILED) {
-            std::cerr << "mmap failed \n" << std::endl;
+            std::cerr << "[error] mmap failed (error thrown) \n" << std::endl;
             original_ptr = nullptr;
         }
         fmt::print("{} : Memory of size {} mmaped \n", original_ptr, total_size);
@@ -132,12 +134,12 @@ private:
         m_total_size  = total_size;
 
         if (original_ptr == nullptr) {
+            fmt::print("[error] mmap failed (nullptr) \n");
             return;
         }
-        std::cout << std::endl;
 
         // Calculate the aligned pointer within the allocated memory block.
-        uintptr_t unaligned_ptr = reinterpret_cast<uintptr_t>(original_ptr);
+        uintptr_t unaligned_ptr = reinterpret_cast<uintptr_t>(m_raw_address);
         uintptr_t misalignment  = unaligned_ptr % alignment;
         uintptr_t adjustment    = (misalignment == 0) ? 0 : (alignment - misalignment);
         uintptr_t aligned_ptr   = unaligned_ptr + adjustment;
@@ -145,17 +147,18 @@ private:
 //        uintptr_t* ptr_storage  = reinterpret_cast<uintptr_t*>(aligned_ptr) - 1;
 //        *ptr_storage = reinterpret_cast<uintptr_t>(original_ptr);
 
-        void* ret = reinterpret_cast<void*>(aligned_ptr);
-        fmt::print("{} : Aligned pointer \n", ret);
-
-        m_address = ret;
+        m_address = reinterpret_cast<void*>(aligned_ptr);
+        fmt::print("{} : Aligned pointer \n", m_address);
+        // m_size    = size;
     }
 
-    std::size_t m_total_size;
-    void* m_raw_address;
+    // std::size_t m_total_size;
+    // void*       m_raw_address;
 
 protected:
-    void* m_address;
+    void*       m_address;
     std::size_t m_size;
-    int m_numa_node;
+    int         m_numa_node;
+    std::size_t m_total_size;
+    void*       m_raw_address;
 };

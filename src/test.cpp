@@ -42,41 +42,48 @@ template <typename Alloc> void std_vector(Alloc a);
 
 template <typename Alloc> void fill_buffer(Alloc a);
 
-template <typename Alloc> void usual_alloc(Alloc a);
+template <typename T, typename Alloc> void usual_alloc(Alloc a);
 
 struct thing {
   thing() { std::cout << "constructing" << std::endl; }
   ~thing() { std::cout << "destructing" << std::endl; }
 };
 
+
+
+
 int main() {
   // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
-  std::size_t mem = 1ull << 30;
+  std::size_t mem = 1ull << 29;
 
   /* Build resource and allocator via resource_builder */
-// #define USE_ALLOC
-// #ifdef USE_ALLOC
+#define USE_ALLOC
+#ifdef USE_ALLOC
   resource_builder RB;
-  auto rb = RB.use_mimalloc().pin()/*.register_memory()*/.on_host(mem);
+  auto rb = RB.use_mimalloc().pin().register_memory().on_host(mem);
   using resource_t = decltype(rb.build());
-  using alloc_t = pmimallocator<int, resource_t>;
+  using alloc_t = pmimallocator<uint32_t, resource_t>;
   alloc_t a(rb);
   fmt::print("\n\n");
 
+  {
+  /* Fill an array through several threads and deallocate all on thread 0*/
+  fill_array_multithread(4, 100000, a);
+  }
+  // usual_alloc<uint32_t>(a);
+#else
+  { heap_per_thread(mem); }
+#endif
 
-//   {
-//     /* Fill an array through several threads and deallocate all on thread 0*/
-//     fill_array_multithread(2, 5, a);
-//   }
-// #else
-//   { heap_per_thread(mem); }
-// #endif
-  // usual_alloc(a);
+
 
   fmt::print("\n\n");
-  // mi_collect(false);
-  // mi_stats_print(NULL);
+  mi_collect(false);
+  mi_stats_print(NULL);
 }
+
+
+
 
 /* Fill an array through several threads and deallocate all on thread 0*/
 template <typename Alloc>
@@ -93,7 +100,7 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs,
 
           fmt::print("Thread {} \n", thread_id);
           for (int i = 0; i < nb_allocs; ++i) {
-            ptrs[thread_id * nb_allocs + i] = a.allocate(32);
+             ptrs[thread_id * nb_allocs + i] = a.allocate(32);
             *ptrs[thread_id * nb_allocs + i] = thread_id * nb_allocs + i;
           }
         },
@@ -108,7 +115,6 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs,
 
   for (int i = 0; i < nb_allocs * nb_threads; ++i) {
     int thread_id = i / nb_allocs;
-    // fmt::print("{} \n", thread_id);
     if (*ptrs[i] == i) {
       a.deallocate(ptrs[i]);
     } else {
@@ -119,6 +125,7 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs,
 
   std::cout << "Checked ok" << std::endl;
   threads.clear();
+  ptrs.clear();
 
   //  fmt::print("\n\n");
   //  mi_collect(false);
@@ -155,10 +162,10 @@ template <typename Alloc> void fill_buffer(Alloc a) {
 }
 
 /* Usual allocation */
-template <typename Alloc> void usual_alloc(Alloc a) {
+template <typename T, typename Alloc> void usual_alloc(Alloc a) {
   fmt::print("Usual allocation\n");
-  int *p1 = a.allocate(32);
-  int *p2 = a.allocate(48);
+  T *p1 = a.allocate(32);
+  T *p2 = a.allocate(48);
   a.deallocate(p1);
   a.deallocate(p2);
   fmt::print("\n\n");

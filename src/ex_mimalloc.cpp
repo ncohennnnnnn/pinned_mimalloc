@@ -47,8 +47,21 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
         /* Do not use OS memory for allocation (but only pre-allocated arena). */
         mi_option_set(mi_option_limit_os_alloc, 1);
 
-        /* OS tag to assign to mimalloc'd memory.  */
+        /* OS tag to assign to mimalloc'd memory. */
         mi_option_enable(mi_option_os_tag);
+
+        if (!thread_local_ex_mimalloc_heap)
+        {
+            auto my_delete = [](mi_heap_t* heap) {
+                fmt::print("ex_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
+                // mi_heap_destroy(heap);
+            };
+            thread_local_ex_mimalloc_heap = mi_heap_new_in_arena(m_arena_id);
+            //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
+            fmt::print(
+                "ex_mimalloc:: New thread local backing heap {} ", (void*) (thread_local_ex_mimalloc_heap));
+        }
+        mi_heap_set_default(thread_local_ex_mimalloc_heap);
     }
 }
 
@@ -109,6 +122,18 @@ void ex_mimalloc::deallocate(void* ptr, std::size_t size)
         }
     }
     //    fmt::print("{} : Memory deallocated. \n", ptr);
+}
+
+ex_mimalloc::~ex_mimalloc()
+{
+    if (!thread_local_ex_mimalloc_heap)
+    {
+        std::cout << "ERROR!!! how can this happpen" << std::endl;
+    } else 
+    {
+        // mi_heap_delete(thread_local_ex_mimalloc_heap);
+        // mi_heap_destroy(thread_local_ex_mimalloc_heap);
+    }
 }
 
 // bool ex_mimalloc::heap_is_unused(void)

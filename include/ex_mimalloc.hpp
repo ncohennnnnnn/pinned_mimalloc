@@ -18,7 +18,7 @@ public:
 
     ex_mimalloc(const ex_mimalloc& m) = delete;
 
-    ~ex_mimalloc() {}
+    ~ex_mimalloc();
 
     void* allocate(const std::size_t size, const std::size_t alignment = 0);
 
