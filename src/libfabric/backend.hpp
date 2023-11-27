@@ -55,9 +55,9 @@ public:
     // move constructor, clear other region so that it is not unregistered twice
     backend(backend&& other) noexcept
       : m_region{std::exchange(other.m_region, nullptr)}
-      , m_info{std::exchange(other.m_info, nullptr)}
       , m_domain{std::exchange(other.m_domain, nullptr)}
       , m_fabric{std::exchange(other.m_fabric, nullptr)}
+      , m_info{std::exchange(other.m_info, nullptr)}
     {
     }
 
@@ -65,9 +65,9 @@ public:
     backend& operator=(backend&& other) noexcept
     {
         m_region = std::exchange(other.m_region, nullptr);
-        m_info = std::exchange(other.m_info, nullptr);
         m_domain = std::exchange(other.m_domain, nullptr);
         m_fabric = std::exchange(other.m_fabric, nullptr);
+        m_info = std::exchange(other.m_info, nullptr);
         return *this;
     }
 
@@ -144,7 +144,7 @@ public:
 
     // Get the remote key of an object inside the memory region.
     // static
-    inline key_t get_remote_key(void* ptr)
+    inline key_t get_remote_key(void* /*ptr*/)
     {
         return fi_mr_key(m_region);
     }

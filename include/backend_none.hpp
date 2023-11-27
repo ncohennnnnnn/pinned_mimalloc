@@ -5,11 +5,11 @@ public:
 
     backend_none() {}
 
-    backend_none(backend_none&& other) noexcept {}
+    backend_none(backend_none&& /*other*/) noexcept {}
 
-    backend_none(void* ptr, const std::size_t size) {}
+    backend_none(void* /*ptr*/, const std::size_t /*size*/) {}
 
-    backend_none& operator=(backend_none&& other) noexcept
+    backend_none& operator=(backend_none&& /*other*/) noexcept
     {
         return *this;
     }
@@ -27,7 +27,7 @@ public:
         return 0;
     }
 
-    static inline int register_memory(void* ptr, std::size_t base_size)
+    static inline int register_memory(void* /*ptr*/, std::size_t /*base_size*/)
     {
         return 0;
     }
@@ -48,7 +48,7 @@ public:
         return 0;
     }
 
-    static inline key_t get_remote_key(void* ptr)
+    static inline key_t get_remote_key(void* /*ptr*/)
     {
         return 0;
     }

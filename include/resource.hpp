@@ -100,7 +100,7 @@ using default_resource =
 using default_args = std::tuple<>;
 
 /*--------------------------------------------------------------------------------
-  Replace a resource class template at postion I in a nested resource type. 
+  Replace a resource class template at postion I in a nested resource type.
   Example:
     res_orig = res0<res1<res2<res3<...>, ...>, ...>, ...>
     MyReplacementResource = MyReplacementResource<NestedResource, U1, U2, ...>
@@ -139,7 +139,7 @@ template <typename Resource = default_resource, typename Args = default_args>
 /** @brief Resource builder, eases the construction of a resource.
  * @tparam Resource: the type of the resource (nested chain of resources).
  * @tparam Args: type of parameters to feed to the resource constructor.
- * @returns a new instance of the resource_builder class template with potentially altered template type arguments 
+ * @returns a new instance of the resource_builder class template with potentially altered template type arguments
  * which holds an updated argument tuple.
  * @fn build() @returns a nested resource which is constructed from the `args` tuple.
 */
@@ -163,14 +163,14 @@ struct resource_builder
 
     //    0           1         2         3        4
     // Resource -- Context -- Pinned -- Memory -- Base
-    //          \         \ 
-//          Malloc     Backend
+    //          \         \                                    .
+    //          Malloc     Backend
     //__________________________________________________________
     // Default structure :
     //    0           1           2             3           4
     // Resource -- Context -- not_pinned -- host_memory -- base
-    //          \         \ 
-//      ex_stdmalloc  backend_none
+    //          \         \                                    .
+    //      ex_stdmalloc  backend_none
 
 #if WITH_MIMALLOC
     constexpr auto use_mimalloc(void) const

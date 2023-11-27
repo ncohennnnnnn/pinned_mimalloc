@@ -91,7 +91,7 @@ public:
     }
 
 private:
-    void _allocate(const std::size_t size, const std::size_t alignement = 0)
+    void _allocate(const std::size_t size, const std::size_t /*alignement*/ = 0)
     {
 #if WITH_MIMALLOC
         _aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size);

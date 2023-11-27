@@ -9,7 +9,7 @@ class ex_stdmalloc
 public:
     ex_stdmalloc() noexcept = default;
 
-    ex_stdmalloc(void* ptr, const std::size_t size, const int numa_node) {}
+    ex_stdmalloc(void* /*ptr*/, const std::size_t /*size*/, const int /*numa_node*/) {}
 
     template <typename Context>
     ex_stdmalloc(const Context& C)
@@ -18,7 +18,7 @@ public:
 
     ex_stdmalloc(const ex_stdmalloc& m) = delete;
 
-    void* allocate(const std::size_t size, const std::size_t alignment = 0)
+    void* allocate(const std::size_t size, const std::size_t /*alignment*/ = 0)
     {
         return std::malloc(size);
     }
@@ -28,7 +28,7 @@ public:
         return std::realloc(ptr, size);
     }
 
-    void deallocate(void* ptr, std::size_t size = 0)
+    void deallocate(void* ptr, std::size_t /*size*/ = 0)
     {
         std::free(ptr);
     }
