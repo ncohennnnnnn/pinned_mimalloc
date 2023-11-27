@@ -1,1 +1,3 @@
-class base {};
+class base
+{
+};

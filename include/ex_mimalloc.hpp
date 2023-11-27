@@ -1,20 +1,21 @@
 #include <cstdint>
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
 #include <unistd.h>
 #include <utility>
 
 #include <mimalloc.h>
 #include <mimalloc/internal.h>
 
-class ex_mimalloc {
+class ex_mimalloc
+{
 public:
     ex_mimalloc() {}
 
     ex_mimalloc(void* ptr, const std::size_t size, const int numa_node);
 
-    template<typename Context>
-    ex_mimalloc( const Context& C );
+    template <typename Context>
+    ex_mimalloc(const Context& C);
 
     ex_mimalloc(const ex_mimalloc& m) = delete;
 
@@ -24,7 +25,7 @@ public:
 
     void* reallocate(void* ptr, std::size_t size);
 
-    void  deallocate(void* ptr, std::size_t size = 0);
+    void deallocate(void* ptr, std::size_t size = 0);
 
     // std::size_t get_usable_size();
 
