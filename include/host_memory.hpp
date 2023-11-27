@@ -130,13 +130,14 @@ private:
         void* original_ptr = std::malloc(total_size);
         fmt::print("{} : Memory of size {} std::mallocated \n", original_ptr, total_size);
 #endif
-        m_raw_address = original_ptr;
-        m_total_size  = total_size;
 
         if (original_ptr == nullptr) {
             fmt::print("[error] mmap failed (nullptr) \n");
             return;
         }
+
+        m_raw_address = original_ptr;
+        m_total_size  = total_size;
 
         // Calculate the aligned pointer within the allocated memory block.
         uintptr_t unaligned_ptr = reinterpret_cast<uintptr_t>(m_raw_address);
@@ -149,11 +150,7 @@ private:
 
         m_address = reinterpret_cast<void*>(aligned_ptr);
         fmt::print("{} : Aligned pointer \n", m_address);
-        // m_size    = size;
     }
-
-    // std::size_t m_total_size;
-    // void*       m_raw_address;
 
 protected:
     void*       m_address;

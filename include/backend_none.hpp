@@ -10,7 +10,7 @@ public:
 
     backend_none& operator=(backend_none&& other) noexcept { return *this; }
 
-    ~backend_none() noexcept {}
+    ~backend_none() {}
 
     int deregister(void) const { return 0; }
 

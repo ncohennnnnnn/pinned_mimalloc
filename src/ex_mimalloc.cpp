@@ -52,12 +52,12 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
 
         if (!thread_local_ex_mimalloc_heap)
         {
-            auto my_delete = [](mi_heap_t* heap) {
-                fmt::print("ex_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
-                // mi_heap_destroy(heap);
-            };
+            // auto my_delete = [](mi_heap_t* heap) {
+            //     fmt::print("ex_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
+            //     mi_heap_destroy(heap);
+            // };
             thread_local_ex_mimalloc_heap = mi_heap_new_in_arena(m_arena_id);
-            //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
+            // unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
             fmt::print(
                 "ex_mimalloc:: New thread local backing heap {} ", (void*) (thread_local_ex_mimalloc_heap));
         }
@@ -75,12 +75,12 @@ void* ex_mimalloc::allocate(const std::size_t size, const std::size_t alignment)
 {
     if (!thread_local_ex_mimalloc_heap)
     {
-        auto my_delete = [](mi_heap_t* heap) {
-            fmt::print("ex_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
-            // mi_heap_destroy(heap);
-        };
+        // auto my_delete = [](mi_heap_t* heap) {
+        //     fmt::print("ex_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
+        //     mi_heap_destroy(heap);
+        // };
         thread_local_ex_mimalloc_heap = mi_heap_new_in_arena(m_arena_id);
-        //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
+        // unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
         fmt::print(
             "ex_mimalloc:: New thread local heap {} ", (void*) (thread_local_ex_mimalloc_heap));
     }
@@ -103,7 +103,7 @@ void* ex_mimalloc::reallocate(void* ptr, std::size_t size)
 {
     if (!thread_local_ex_mimalloc_heap)
     {
-        std::cout << "ERROR!!! how can this happpen" << std::endl;
+        std::cout << "ERROR!!! how can this happen" << std::endl;
     }
     return mi_heap_realloc(thread_local_ex_mimalloc_heap, ptr, size);
 }
@@ -128,11 +128,13 @@ ex_mimalloc::~ex_mimalloc()
 {
     if (!thread_local_ex_mimalloc_heap)
     {
-        std::cout << "ERROR!!! how can this happpen" << std::endl;
+        std::cout << "ERROR!!! how can this happen" << std::endl;
     } else 
     {
-        // mi_heap_delete(thread_local_ex_mimalloc_heap);
-        // mi_heap_destroy(thread_local_ex_mimalloc_heap);
+        if (thread_local_ex_mimalloc_heap->page_count!=0){
+            fmt::print("Heap not empty ! \n");
+            // _mi_heap_destroy_pages(thread_local_ex_mimalloc_heap);
+        }
     }
 }
 
