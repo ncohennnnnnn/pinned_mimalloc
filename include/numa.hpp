@@ -9,38 +9,41 @@
  */
 #pragma once
 
-#include <vector>
 #include <algorithm>
+#include <vector>
 
 #ifdef NUMA_THROWS
-#define NUMA_CONDITIONAL_NOEXCEPT
+# define NUMA_CONDITIONAL_NOEXCEPT
 #else
-#define NUMA_CONDITIONAL_NOEXCEPT noexcept
+# define NUMA_CONDITIONAL_NOEXCEPT noexcept
 #endif
 
 // Query numa memory regions and explicitely allocate on specific regions.
 // This class is a thin wrapper over some of libnuma's functionality.
 class numa_tools
 {
-  public:
+public:
     using index_type = std::size_t;
     using size_type = std::size_t;
 
     struct allocation
     {
-        void* const      ptr = nullptr;
-        size_type const  size = 0u;
+        void* const ptr = nullptr;
+        size_type const size = 0u;
         index_type const node = 0u;
-        bool const       use_numa_free = true;
+        bool const use_numa_free = true;
 
-        operator bool() const noexcept { return (bool)ptr; }
+        operator bool() const noexcept
+        {
+            return (bool) ptr;
+        }
     };
 
     // maps node id to index
     // where index is enumerating the nodes contiguously
     class node_map
     {
-      public:
+    public:
         using key_type = index_type;
         using mapped_type = index_type;
         using value_type = std::pair<const key_type, mapped_type>;
@@ -65,12 +68,27 @@ class numa_tools
         node_map& operator=(node_map const&) = default;
         node_map& operator=(node_map&&) = default;
 
-        size_type size() const noexcept { return nodes.size(); }
-        auto      begin() const noexcept { return nodes.cbegin(); }
-        auto      end() const noexcept { return nodes.cend(); }
-        auto      rbegin() const noexcept { return nodes.crbegin(); }
-        auto      rend() const noexcept { return nodes.crend(); }
-        auto      find(key_type const& n) const noexcept
+        size_type size() const noexcept
+        {
+            return nodes.size();
+        }
+        auto begin() const noexcept
+        {
+            return nodes.cbegin();
+        }
+        auto end() const noexcept
+        {
+            return nodes.cend();
+        }
+        auto rbegin() const noexcept
+        {
+            return nodes.crbegin();
+        }
+        auto rend() const noexcept
+        {
+            return nodes.crend();
+        }
+        auto find(key_type const& n) const noexcept
         {
             return (n >= upper_bound_key()) ? end() : (begin() + nodes_to_index[n]);
         }
@@ -79,50 +97,67 @@ class numa_tools
             return (n >= upper_bound_key()) ? 0u : (nodes_to_index[n] < size());
         }
 
-      private:
-        index_type upper_bound_key() const noexcept { return nodes_to_index.size(); }
+    private:
+        index_type upper_bound_key() const noexcept
+        {
+            return nodes_to_index.size();
+        }
 
         std::vector<value_type> nodes;
         std::vector<index_type> nodes_to_index;
     };
 
-  private:
-    static bool      is_initialized_;
+private:
+    static bool is_initialized_;
     static size_type page_size_;
 
-  public:
-    static bool      is_initialized() noexcept { return numa_tools::is_initialized_; }
-    static size_type page_size() noexcept { return numa_tools::page_size_; }
+public:
+    static bool is_initialized() noexcept
+    {
+        return numa_tools::is_initialized_;
+    }
+    static size_type page_size() noexcept
+    {
+        return numa_tools::page_size_;
+    }
 
-  private:
+private:
     std::vector<index_type> m_cpu_to_node;
-    node_map                m_host_nodes;
-    node_map                m_local_nodes;
-    node_map                m_device_nodes;
+    node_map m_host_nodes;
+    node_map m_local_nodes;
+    node_map m_device_nodes;
 
-  private:
+private:
     numa_tools() NUMA_CONDITIONAL_NOEXCEPT;
     friend numa_tools make_numa_tools() NUMA_CONDITIONAL_NOEXCEPT;
 
-  public:
+public:
     ~numa_tools() noexcept;
 
-  public:
-    const auto& host_nodes() const noexcept { return m_host_nodes; }
-    const auto& local_nodes() const noexcept { return m_local_nodes; }
-    const auto& device_nodes() const noexcept { return m_device_nodes; }
-    index_type  local_node() const noexcept;
+public:
+    const auto& host_nodes() const noexcept
+    {
+        return m_host_nodes;
+    }
+    const auto& local_nodes() const noexcept
+    {
+        return m_local_nodes;
+    }
+    const auto& device_nodes() const noexcept
+    {
+        return m_device_nodes;
+    }
+    index_type local_node() const noexcept;
 
-    bool       can_allocate_on(index_type node) const noexcept;
+    bool can_allocate_on(index_type node) const noexcept;
     allocation allocate(size_type num_pages) const noexcept;
     allocation allocate(size_type num_pages, index_type node) const noexcept;
     allocation allocate_malloc(size_type num_pages) const noexcept;
-    void       free(allocation const& a) const noexcept;
+    void free(allocation const& a) const noexcept;
     index_type get_node(void* ptr) const noexcept;
 
-  private:
+private:
     void discover_nodes() noexcept;
 };
 
 const numa_tools& numa() noexcept;
-

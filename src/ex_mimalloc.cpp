@@ -28,7 +28,7 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
 {
     if (size != 0)
     {
-    /** @brief Create the ex_mimalloc arena
+        /** @brief Create the ex_mimalloc arena
      * @param exclusive allows allocations if specifically for this arena
      * @param is_committed set to true
      *
@@ -58,8 +58,8 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
             };
             thread_local_ex_mimalloc_heap = mi_heap_new_in_arena(m_arena_id);
             //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
-            fmt::print(
-                "ex_mimalloc:: New thread local backing heap {} ", (void*) (thread_local_ex_mimalloc_heap));
+            fmt::print("ex_mimalloc:: New thread local backing heap {} ",
+                (void*) (thread_local_ex_mimalloc_heap));
         }
         mi_heap_set_default(thread_local_ex_mimalloc_heap);
     }
@@ -129,7 +129,8 @@ ex_mimalloc::~ex_mimalloc()
     if (!thread_local_ex_mimalloc_heap)
     {
         std::cout << "ERROR!!! how can this happpen" << std::endl;
-    } else 
+    }
+    else
     {
         // mi_heap_delete(thread_local_ex_mimalloc_heap);
         // mi_heap_destroy(thread_local_ex_mimalloc_heap);
@@ -147,24 +148,24 @@ ex_mimalloc::~ex_mimalloc()
 // }
 
 // template<typename T>
-// std::size_t ex_mimalloc::get_usable_size(T* ptr) { 
+// std::size_t ex_mimalloc::get_usable_size(T* ptr) {
 //     if (!thread_local_ex_mimalloc_heap)
 //     {
 //         fmt::print("[warning] First time seeing this heap, cannot get its usable size. \n");
 //         return 0;
-//     } else 
+//     } else
 //     {
-//          return mi_usable_size((void*) (ptr)); 
+//          return mi_usable_size((void*) (ptr));
 //     }
 // }
 
 // bool ex_mimalloc::block_is_unused(const mi_heap_t *heap, const mi_heap_area_t *area, void *block, size_t block_size, void *arg)
-// { 
+// {
 //     if (!thread_local_ex_mimalloc_heap)
 //     {
 //         fmt::print("[warning] First time seeing this heap, cannot get its usable size. \n");
 //         return false;
-//     } else 
+//     } else
 //     {
 //         if ( mi_usable_size(block) == block_size; ) { return true; }
 //         else { return false; }
