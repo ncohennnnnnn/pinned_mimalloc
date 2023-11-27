@@ -19,6 +19,12 @@
 # endif
 #endif
 
+// if we allocate memory using regular malloc/std::malloc when mimalloc has overridden
+// the default allocation, then we end up creating our heap with a chubk of memory that
+// came from mimalloc. Instead we muust use mmap/munmap to get system memory that
+// isn't part of the mimalloc heap tracking/usage
+#define PMIMALLOC_USE_MMAP
+
 // /* TODO: Steal numa stuff from Fabian */
 // int get_node(void* ptr){
 //     int numa_node[1] = {-1};
@@ -109,7 +115,6 @@ private:
         m_size = size;
     }
 
-#define PMIMALLOC_USE_MMAP
     void _deallocate()
     {
 #ifdef PMIMALLOC_USE_MMAP
@@ -141,6 +146,11 @@ private:
         {
             std::cerr << "[error] mmap failed (error thrown) \n" << std::endl;
             original_ptr = nullptr;
+        }
+        else
+        {
+            // tell the OS that this memory can be considered for huge pages
+            madvise(original_ptr, total_size, MADV_HUGEPAGE);
         }
         fmt::print("{} : Memory of size {} mmaped \n", original_ptr, total_size);
 #else
