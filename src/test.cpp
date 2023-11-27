@@ -2,6 +2,7 @@
 #include <task_group.hpp>
 
 #include <barrier>
+#include <fmt/std.h>
 #include <iostream>
 #include <math.h>
 
@@ -52,11 +53,11 @@ struct thing
 {
     thing()
     {
-        std::cout << "constructing" << std::endl;
+        fmt::print("constructing\n");
     }
     ~thing()
     {
-        std::cout << "destructing" << std::endl;
+        fmt::print("destructing\n");
     }
 };
 
@@ -100,26 +101,27 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs, Alloc a)
 
     for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
     {
-        threads.push_back(std::thread{[&a, &nb_allocs, &ptrs](int thread_id) mutable {
-                                          std::cout << thread_id << ": "
-                                                    << std::this_thread::get_id() << std::endl;
+        threads.push_back(
+            std::thread{[&a, &nb_allocs, &ptrs](int thread_id) mutable {
+                            fmt::print("{}: {}, \n", thread_id, std::this_thread::get_id());
 
-                                          fmt::print("Thread {} \n", thread_id);
-                                          for (int i = 0; i < nb_allocs; ++i)
-                                          {
-                                              ptrs[thread_id * nb_allocs + i] = a.allocate(32);
-                                              *ptrs[thread_id * nb_allocs + i] =
-                                                  thread_id * nb_allocs + i;
-                                          }
-                                      },
-            thread_id});
+                            fmt::print("Thread {} \n", thread_id);
+                            for (int i = 0; i < nb_allocs; ++i)
+                            {
+                                ptrs[thread_id * nb_allocs + i] = a.allocate(32);
+                                *ptrs[thread_id * nb_allocs + i] = thread_id * nb_allocs + i;
+                            }
+                        },
+                thread_id});
     }
 
     for (auto& t : threads)
         t.join();
-    std::cout << "finished" << std::endl;
+    fmt::print("finished\n");
+    ;
 
-    std::cout << "Clearing memory " << std::endl;
+    fmt::print("Clearing memory \n");
+    ;
 
     for (int i = 0; i < nb_allocs * nb_threads; ++i)
     {
@@ -134,7 +136,8 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs, Alloc a)
         }
     }
 
-    std::cout << "Checked ok" << std::endl;
+    fmt::print("Checked ok\n");
+    ;
     threads.clear();
     ptrs.clear();
 
@@ -223,13 +226,13 @@ void heap_per_thread(std::size_t mem)
         threading::task_system ts(nb_threads, true);
         threading::parallel_for::apply(
             nb_threads, &ts, [&heaps, m_arena_id, &nb_allocs, &ptrs](int thread_id) mutable {
-                std::cout << "Thread Id " << std::this_thread::get_id() << std::endl;
+                fmt::print("Thread Id " << std::this_thread::get_id() << std::endl;
 
                 if (!thread_local_heap_)
                 {
-                    std::cout << "New heap on thread " << thread_id << std::endl;
+                    fmt::print("New heap on thread " << thread_id << std::endl;
                     auto my_delete = [](mi_heap_t* heap) {
-                        std::cout << "NOT Deleting heap (it's safe) " << heap << std::endl;
+                        fmt::print("NOT Deleting heap (it's safe) " << heap << std::endl;
                         // mi_heap_destroy(heap);
                     };
                     thread_local_heap_ =
@@ -237,9 +240,9 @@ void heap_per_thread(std::size_t mem)
                 }
                 for (int i = 0; i < nb_allocs; ++i)
                 {
-                    ptrs[thread_id * nb_allocs + i] =
-                        static_cast<uint32_t*>(mi_heap_malloc(thread_local_heap_.get(), 32));
-                    *ptrs[thread_id * nb_allocs + i] = thread_id * nb_allocs + i;
+                ptrs[thread_id * nb_allocs + i] =
+                    static_cast<uint32_t*>(mi_heap_malloc(thread_local_heap_.get(), 32));
+                *ptrs[thread_id * nb_allocs + i] = thread_id * nb_allocs + i;
                 }
             });
     }
@@ -253,9 +256,9 @@ void heap_per_thread(std::size_t mem)
                 // heaps[thread_id] = mi_heap_new_in_arena(m_arena_id);
                 if (!thread_local_heap_)
                 {
-                    std::cout << "New heap on thread " << thread_id << std::endl;
+                    fmt::print("New heap on thread {}\n", thread_id);
                     auto my_delete = [](mi_heap_t* heap) {
-                        std::cout << "NOT Deleting heap (it's safe) " << heap << std::endl;
+                        fmt::print("NOT Deleting heap (it's safe) {}\n", (void*) (heap));
                         // mi_heap_destroy(heap);
                     };
                     thread_local_heap_ =
@@ -273,10 +276,12 @@ void heap_per_thread(std::size_t mem)
     }
     for (auto& t : threads)
         t.join();
-    std::cout << "finished" << std::endl;
+    fmt::print("finished\n");
+    ;
 #endif
 
-    std::cout << "Clearing memory " << std::endl;
+    fmt::print("Clearing memory \n");
+    ;
 
     for (int i = 0; i < nb_allocs * nb_threads; ++i)
     {

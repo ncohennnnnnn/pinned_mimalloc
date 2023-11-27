@@ -103,7 +103,7 @@ void* ex_mimalloc::reallocate(void* ptr, std::size_t size)
 {
     if (!thread_local_ex_mimalloc_heap)
     {
-        std::cout << "ERROR!!! how can this happpen" << std::endl;
+        fmt::print("ERROR!!! how can this happpen");
     }
     return mi_heap_realloc(thread_local_ex_mimalloc_heap, ptr, size);
 }
@@ -128,7 +128,7 @@ ex_mimalloc::~ex_mimalloc()
 {
     if (!thread_local_ex_mimalloc_heap)
     {
-        std::cout << "ERROR!!! how can this happpen" << std::endl;
+        fmt::print("ERROR!!! how can this happpen");
     }
     else
     {
