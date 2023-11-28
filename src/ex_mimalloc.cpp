@@ -56,7 +56,7 @@ ex_mimalloc::ex_mimalloc(void* ptr, const std::size_t size, const int numa_node)
             //     mi_heap_destroy(heap);
             // };
             thread_local_ex_mimalloc_heap = mi_heap_new_in_arena(m_arena_id);
-            // unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
+            //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
             fmt::print("ex_mimalloc:: New thread local backing heap {} ",
                 (void*) (thread_local_ex_mimalloc_heap));
         }
@@ -102,7 +102,7 @@ void* ex_mimalloc::reallocate(void* ptr, std::size_t size)
 {
     if (!thread_local_ex_mimalloc_heap)
     {
-        std::cout << "ERROR!!! how can this happen" << std::endl;
+        fmt::print("ERROR!!! how can this happpen");
     }
     return mi_heap_realloc(thread_local_ex_mimalloc_heap, ptr, size);
 }
@@ -132,7 +132,7 @@ ex_mimalloc::~ex_mimalloc()
 {
     if (!thread_local_ex_mimalloc_heap)
     {
-        std::cout << "ERROR!!! how can this happen" << std::endl;
+        fmt::print("ERROR!!! how can this happpen");
     }
     else
     {

@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <iostream>
 #include <stdexcept>
 #include <unistd.h>
 
@@ -9,7 +8,7 @@ class ex_stdmalloc
 public:
     ex_stdmalloc() noexcept = default;
 
-    ex_stdmalloc(void* ptr, const std::size_t size, const int numa_node) {}
+    ex_stdmalloc(void* /*ptr*/, const std::size_t /*size*/, const int /*numa_node*/) {}
 
     template <typename Context>
     ex_stdmalloc(const Context& C)

@@ -31,22 +31,17 @@ public:
         return {m_context, ptr, size, gpu};
     }
 
-    void set_ucp_context(ucp_context_h c)
+    template <>
+    inline rma_region register_memory<rma_context>(rma_context& c, void* ptr, std::size_t size)
     {
-        m_context = c;
+        return c.make_region(ptr, size);
     }
-};
-
-template <>
-inline rma_region register_memory<rma_context>(rma_context& c, void* ptr, std::size_t size)
-{
-    return c.make_region(ptr, size);
-}
 
 #if OOMPH_ENABLE_DEVICE
-template <>
-inline rma_region register_device_memory<rma_context>(rma_context& c, void* ptr, std::size_t size)
-{
-    return c.make_region(ptr, size, true);
-}
+    template <>
+    inline rma_region
+    register_device_memory<rma_context>(rma_context& c, void* ptr, std::size_t size)
+    {
+        return c.make_region(ptr, size, true);
+    }
 #endif

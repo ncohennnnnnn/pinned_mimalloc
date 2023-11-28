@@ -7,7 +7,8 @@
 #include <new>
 #include <vector>
 
-#include <resource.hpp>
+#include "indexed_tl_ptr.hpp"
+#include "resource.hpp"
 
 template <typename T, typename Resource>
 class pmimallocator
