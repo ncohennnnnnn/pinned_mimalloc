@@ -109,6 +109,11 @@ void* ex_mimalloc::reallocate(void* ptr, std::size_t size)
 
 void ex_mimalloc::deallocate(void* ptr, std::size_t size)
 {
+    // uintptr_t ptr_ = reinterpret_cast<uintptr_t>(ptr);
+    // uintptr_t heap_ = reinterpret_cast<uintptr_t>(mi_heap_get_backing());
+    // ptrdiff_t diff = ptr_ - heap_;
+    // if (diff > 0)
+    //     fmt::print("BIG PROBLEM \n");
     if (likely(ptr))
     {
         if (unlikely(size))

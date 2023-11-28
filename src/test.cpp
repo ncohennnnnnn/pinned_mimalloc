@@ -5,24 +5,23 @@
 #include <iostream>
 #include <math.h>
 
+#include <cuda_runtime.h>
+
 /* TODO:
+    - Fix segfault
     - how to extend the arena size ?
+
     - numa node stuff, steal it from Fabian and get how to use it
-    - for now, MI_OVERRIDE has to be set to OFF otherwise we can't use
-      std::malloc ----> solved by using mmap
     - device stuff
       - get the device id in the device_memory constructor
       - check if ptr is actually on device for user_device_memory
+      we would need to change malloc inside mi_malloc to cudaMalloc : this will require a lot of work
+
     - RMA keys functions, the ones for individual objects (with offset)
     - UCX
     - MPI
-    - concepts for Key, Register and Malloc
-    - choose appropriate flags in the cuda pinning
-    - choose appropriate flags in the libfabric backend methods
-    - add the choice of which numa node one wants to allocate using std::malloc
-    - set is_large as an option in the ex_mimalloc constructor (and hence in
-   resource and resource_builder)
-    - (the rest of the allocator class)
+
+    - in ex_stdmalloc change std::malloc to a pmr::malloc on the context (+ numa stuf ?)
 */
 
 // void mi_heap_destroy(mi_heap_t* heap);
@@ -65,9 +64,11 @@ int main()
     // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
     std::size_t mem = 1ull << 29;
 
+// #define USE_ALLOC
+#define USE_DEVICE
+
+#if defined(USE_ALLOC)
     /* Build resource and allocator via resource_builder */
-#define USE_ALLOC
-#ifdef USE_ALLOC
     resource_builder RB;
     auto rb = RB.use_mimalloc() /*.pin()*/.register_memory().on_host(mem);
     using resource_t = decltype(rb.build());
@@ -80,12 +81,38 @@ int main()
         fill_array_multithread(4, 1000, a);
     }
     // usual_alloc<uint32_t>(a);
+
+#elif defined(USE_DEVICE)
+    {
+        device_memory<base> dm(mem);
+        void* ptr = dm.get_address();
+        mi_arena_id_t arena_id;
+        int numa_node = -1;
+
+        bool success =
+            mi_manage_os_memory_ex(ptr, mem, true, false, true, numa_node, true, &arena_id);
+        if (!success)
+        {
+            fmt::print("{} : [error] ex_mimalloc failed to create the arena. \n", ptr);
+        }
+        else
+        {
+            fmt::print("{} : Mimalloc arena created \n", ptr);
+        }
+        __device__ mi_heap_t* heap_ = mi_heap_new_in_arena(arena_id);
+        // void* p1 = mi_heap_malloc(heap_, 32);
+        // fmt::print("{} : device ptr allocated \n", p1);
+        // void* p2 = mi_heap_malloc(heap_, 48);
+        // fmt::print("{} : device ptr allocated \n", p2);
+        // mi_free(p1);
+        // mi_free(p2);
+    }
+
 #else
     {
         heap_per_thread(mem);
     }
 #endif
-
     fmt::print("\n\n");
     // mi_collect(false);
     mi_stats_print(NULL);
@@ -96,6 +123,7 @@ template <typename Alloc>
 void fill_array_multithread(const int nb_threads, const int nb_allocs, Alloc a)
 {
     std::vector<uint32_t*> ptrs(nb_threads * nb_allocs);
+    // uint32_t* ptrs[nb_threads * nb_allocs];
     std::vector<std::thread> threads;
 
     for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
@@ -139,8 +167,8 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs, Alloc a)
     ptrs.clear();
 
     //  fmt::print("\n\n");
-    //  mi_collect(false);
-    //  mi_stats_print(NULL);
+    // mi_collect(false);
+    // mi_stats_print(NULL);
 }
 
 /* Standard vector */
@@ -198,7 +226,7 @@ void heap_per_thread(std::size_t mem)
     // mi_option_set(mi_option_limit_os_alloc, 1);
     host_memory<base> hm(mem);
     void* ptr = hm.get_address();
-    constexpr std::size_t nb_threads = 20;
+    constexpr std::size_t nb_threads = 4;
     constexpr std::size_t nb_allocs = 100000;
     mi_arena_id_t m_arena_id{};
 
