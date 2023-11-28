@@ -35,7 +35,7 @@ mi_heap_t* create_tls_heap(mi_arena_id_t m_arena_id)
     return mi_heap_new_in_arena(m_arena_id);
 }
 
-void heap_per_thread(std::size_t mem);
+void heap_per_thread(const int nb_threads, const int nb_allocs, std::size_t mem);
 
 template <typename Alloc>
 void fill_array_multithread(const int nb_threads, const int nb_allocs, Alloc a);
@@ -49,25 +49,14 @@ void fill_buffer(Alloc a);
 template <typename T, typename Alloc>
 void usual_alloc(Alloc a);
 
-struct thing
-{
-    thing()
-    {
-        fmt::print("constructing\n");
-    }
-    ~thing()
-    {
-        fmt::print("destructing\n");
-    }
-};
-
 int main()
 {
     // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
     std::size_t mem = 1ull << 29;
-
+    const int nb_threads = 1;
+    const int nb_allocs = 100000;
     /* Build resource and allocator via resource_builder */
-#define USE_ALLOC
+//#define USE_ALLOC
 #ifdef USE_ALLOC
     resource_builder RB;
     auto rb = RB.use_mimalloc().pin().register_memory().on_host(mem);
@@ -78,12 +67,12 @@ int main()
 
     {
         /* Fill an array through several threads and deallocate all on thread 0*/
-        fill_array_multithread(4, 100000, a);
+        fill_array_multithread(nb_threads, nb_allocs, a);
     }
     // usual_alloc<uint32_t>(a);
 #else
     {
-        heap_per_thread(mem);
+        heap_per_thread(nb_threads, nb_allocs, mem);
     }
 #endif
 
@@ -118,10 +107,8 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs, Alloc a)
     for (auto& t : threads)
         t.join();
     fmt::print("finished\n");
-    ;
 
     fmt::print("Clearing memory \n");
-    ;
 
     for (int i = 0; i < nb_allocs * nb_threads; ++i)
     {
@@ -137,7 +124,6 @@ void fill_array_multithread(const int nb_threads, const int nb_allocs, Alloc a)
     }
 
     fmt::print("Checked ok\n");
-    ;
     threads.clear();
     ptrs.clear();
 
@@ -196,18 +182,16 @@ void usual_alloc(Alloc a)
 }
 
 /* Build an arena, then 1 heap per thread, allocate with them */
-void heap_per_thread(std::size_t mem)
+void heap_per_thread(const int nb_threads, const int nb_allocs, std::size_t mem)
 {
     // mi_option_set(mi_option_limit_os_alloc, 1);
     host_memory<base> hm(mem);
     void* ptr = hm.get_address();
-    constexpr std::size_t nb_threads = 20;
-    constexpr std::size_t nb_allocs = 100000;
     mi_arena_id_t m_arena_id{};
 
     mi_heap_t* heaps[nb_threads];
 
-    std::vector<uint32_t*> ptrs(nb_threads * nb_allocs);
+    std::vector<std::uint32_t*> ptrs(nb_threads * nb_allocs);
     bool success = mi_manage_os_memory_ex(ptr, mem, true, false, true, -1, true, &m_arena_id);
     if (!success)
     {
@@ -275,13 +259,12 @@ void heap_per_thread(std::size_t mem)
             thread_id});
     }
     for (auto& t : threads)
+    {
         t.join();
+    }
     fmt::print("finished\n");
-    ;
-#endif
 
     fmt::print("Clearing memory \n");
-    ;
 
     for (int i = 0; i < nb_allocs * nb_threads; ++i)
     {
@@ -300,6 +283,6 @@ void heap_per_thread(std::size_t mem)
     threads.clear();
 
     //  fmt::print("\n\n");
-    //  mi_collect(false);
-    //  mi_stats_print(NULL);
+    //    mi_collect(true);
+    //    mi_stats_print(NULL);
 }
