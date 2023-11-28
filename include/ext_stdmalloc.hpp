@@ -3,19 +3,19 @@
 #include <unistd.h>
 
 // TODO: add NUMA-aware allocation ?
-class ex_stdmalloc
+class ext_stdmalloc
 {
 public:
-    ex_stdmalloc() noexcept = default;
+    ext_stdmalloc() noexcept = default;
 
-    ex_stdmalloc(void* /*ptr*/, const std::size_t /*size*/, const int /*numa_node*/) {}
+    ext_stdmalloc(void* /*ptr*/, const std::size_t /*size*/, const int /*numa_node*/) {}
 
     template <typename Context>
-    ex_stdmalloc(const Context& C)
+    ext_stdmalloc(const Context& C)
     {
     }
 
-    ex_stdmalloc(const ex_stdmalloc& m) = delete;
+    ext_stdmalloc(const ext_stdmalloc& m) = delete;
 
     void* allocate(const std::size_t size, const std::size_t alignment = 0)
     {

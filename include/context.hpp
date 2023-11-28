@@ -38,8 +38,8 @@ public:
     {
     }
 
-    context(const std::size_t size, const std::size_t alignement = 0)
-      : memory_t{size, alignement}
+    context(const std::size_t size, const std::size_t alignment = 0)
+      : memory_t{size, alignment}
       , m_backend{Memory::m_address, Memory::m_size}
     {
     }

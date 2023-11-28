@@ -106,7 +106,7 @@ public:
     }
 
     // /* Usable size (only with mimalloc) */
-    // #if WITH_MIMALLOC
+    // #if PMIMALLOC_WITH_MIMALLOC
     //     std::size_t get_usable_size() { return m_sptr_resource->get_usable_size(); }
     // #endif
 

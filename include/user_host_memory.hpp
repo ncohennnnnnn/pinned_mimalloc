@@ -13,7 +13,7 @@
 
 #include <fmt/core.h>
 
-#if WITH_MIMALLOC
+#if PMIMALLOC_WITH_MIMALLOC
 # ifndef MIMALLOC_SEGMENT_ALIGNED_SIZE
 #  define MIMALLOC_SEGMENT_ALIGNED_SIZE ((uintptr_t) 1 << 26)
 # endif

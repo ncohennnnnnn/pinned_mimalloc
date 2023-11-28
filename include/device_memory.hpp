@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 
-#if WITH_MIMALLOC
+#if PMIMALLOC_WITH_MIMALLOC
 # ifndef MIMALLOC_SEGMENT_ALIGNED_SIZE
 #  define MIMALLOC_SEGMENT_ALIGNED_SIZE ((uintptr_t) 1 << 26)
 # endif
@@ -24,9 +24,9 @@ public:
     {
     }
 
-    device_memory(const std::size_t size, const std::size_t alignement = 0)
+    device_memory(const std::size_t size, const std::size_t alignment = 0)
     {
-        _allocate(m_size, alignement);
+        _allocate(m_size, alignment);
     }
 
     template <typename T>
@@ -71,14 +71,14 @@ public:
     }
 
 private:
-    void _allocate(std::size_t size, std::size_t alignement = 1)
+    void _allocate(std::size_t size, std::size_t alignment = 1)
     {
-#if WITH_MIMALLOC
+#if PMIMALLOC_WITH_MIMALLOC
         _aligned_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size);
 #else
-        if (alignement != 0)
+        if (alignment != 0)
         {
-            _aligned_alloc(alignement, size);
+            _aligned_alloc(alignment, size);
         }
         else
         {

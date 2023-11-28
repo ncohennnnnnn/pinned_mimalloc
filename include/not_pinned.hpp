@@ -13,8 +13,8 @@ public:
     {
     }
 
-    not_pinned(const std::size_t size, const std::size_t alignement = 0)
-      : Memory{size, alignement}
+    not_pinned(const std::size_t size, const std::size_t alignment = 0)
+      : Memory{size, alignment}
     {
     }
 

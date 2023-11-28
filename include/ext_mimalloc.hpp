@@ -5,27 +5,30 @@
 #include <utility>
 
 #include <mimalloc.h>
+/* TODO: get rid of this include */
 #include <mimalloc/internal.h>
 
-class ex_mimalloc
+class ext_mimalloc
 {
 public:
-    ex_mimalloc() {}
+    ext_mimalloc() {}
 
-    ex_mimalloc(void* ptr, const std::size_t size, const int numa_node);
+    ext_mimalloc(void* ptr, const std::size_t size, const int numa_node);
 
     template <typename Context>
-    ex_mimalloc(const Context& C);
+    ext_mimalloc(const Context& C);
 
-    ex_mimalloc(const ex_mimalloc& m) = delete;
+    ext_mimalloc(const ext_mimalloc& m) = delete;
 
-    ~ex_mimalloc();
+    ~ext_mimalloc();
 
     void* allocate(const std::size_t size, const std::size_t alignment = 0);
 
     void* reallocate(void* ptr, std::size_t size);
 
     void deallocate(void* ptr, std::size_t size = 0);
+
+    mi_heap_t* get_heap();
 
     // std::size_t get_usable_size();
 

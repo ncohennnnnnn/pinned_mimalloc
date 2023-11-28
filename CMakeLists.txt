@@ -44,7 +44,7 @@ include(GNUInstallDirs)
 # ------------------------------------------------------------------------------
 # Ideally we need to build mimalloc source for debugging
 # ------------------------------------------------------------------------------
-option(WITH_MIMALLOC ON)
+option(PMIMALLOC_WITH_MIMALLOC ON)
 
 # ------------------------------------------------------------------------------
 # Create config file
@@ -145,13 +145,13 @@ string(TOUPPER ${BACKEND} BACKEND_U)
 # set(BACKEND_ ${BACKEND_U} CACHE INTERNAL "" FORCE) set(PMIMALLOC_DEVICE
 # "PMIMALLOC_DEVICE_${BACKEND_}" CACHE INTERNAL "" FORCE)
 if(${BACKEND} STREQUAL "none")
-    set(BACKEND_SOURCE src/ex_mimalloc.cpp src/numa.cpp ${PMI_LOG_SRC})
+    set(BACKEND_SOURCE src/ext_mimalloc.cpp src/numa.cpp ${PMI_LOG_SRC})
 else()
-    set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/ex_mimalloc.cpp src/numa.cpp
+    set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/ext_mimalloc.cpp src/numa.cpp
                     ${PMI_LOG_SRC})
 endif()
 add_library(pmimalloc_${BACKEND} SHARED ${BACKEND_SOURCE})
-target_compile_definitions(pmimalloc_${BACKEND} PUBLIC WITH_MIMALLOC
+target_compile_definitions(pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC
                                                        WITH_${BACKEND_U})
 set_target_properties(pmimalloc_${BACKEND} PROPERTIES PUBLIC_HEADER
                                                       include/allocator.h)
@@ -218,7 +218,7 @@ target_link_libraries(
   pmimalloc
   PRIVATE fmt::fmt-header-only NUMA::libnuma CUDA::cudart HWLOC::libhwloc
   PUBLIC mimalloc pmimalloc_${BACKEND})
-target_compile_definitions(pmimalloc PRIVATE WITH_MIMALLOC)
+target_compile_definitions(pmimalloc PRIVATE PMIMALLOC_WITH_MIMALLOC)
 # target_compile_definitions(pmimalloc PRIVATE -DMI_OVERRIDE=OFF )
 
 # ---------------------------------------------------------------------
