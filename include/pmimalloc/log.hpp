@@ -1,6 +1,6 @@
 #pragma once
 
-#include <config.hpp>
+#include <pmimalloc/config.hpp>
 
 // use the variadic macro LOG to log messages
 // the arguments will be divided by a whitespace

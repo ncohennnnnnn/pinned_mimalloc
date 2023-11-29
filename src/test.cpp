@@ -1,11 +1,11 @@
-#include <allocator.hpp>
-#include <task_group.hpp>
-
 #include <barrier>
-#include <fmt/std.h>
 #include <iostream>
 #include <math.h>
-
+//
+#include <fmt/std.h>
+//
+#include <pmimalloc/allocator.hpp>
+//
 #include <cuda_runtime.h>
 
 /* TODO:

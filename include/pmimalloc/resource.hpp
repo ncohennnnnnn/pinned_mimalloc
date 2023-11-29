@@ -2,12 +2,12 @@
 
 #include <memory>
 #include <tuple>
-
-#include <context.hpp>
-#include <resource.hpp>
+//
+#include <pmimalloc/context.hpp>
+#include <pmimalloc/resource.hpp>
 
 #if PMIMALLOC_WITH_MIMALLOC
-# include <ext_mimalloc.hpp>
+# include <pmimalloc/ext_mimalloc.hpp>
 #endif
 #if WITH_MPI
 # include <../src/mpi/backend.hpp>
@@ -19,19 +19,19 @@
 # include <../src/libfabric/backend.hpp>
 #endif
 
-#include <backend_none.hpp>
-#include <base.hpp>
-#include <cuda_pinned.hpp>
-#include <device_memory.hpp>
-#include <ext_stdmalloc.hpp>
-#include <host_memory.hpp>
-#include <mirror_memory.hpp>
-#include <mirrored.hpp>
-#include <not_pinned.hpp>
-#include <pinned.hpp>
-#include <simple.hpp>
-#include <user_device_memory.hpp>
-#include <user_host_memory.hpp>
+#include <pmimalloc/backend_none.hpp>
+#include <pmimalloc/base.hpp>
+#include <pmimalloc/cuda_pinned.hpp>
+#include <pmimalloc/device_memory.hpp>
+#include <pmimalloc/ext_stdmalloc.hpp>
+#include <pmimalloc/host_memory.hpp>
+#include <pmimalloc/mirror_memory.hpp>
+#include <pmimalloc/mirrored.hpp>
+#include <pmimalloc/not_pinned.hpp>
+#include <pmimalloc/pinned.hpp>
+#include <pmimalloc/simple.hpp>
+#include <pmimalloc/user_device_memory.hpp>
+#include <pmimalloc/user_host_memory.hpp>
 
 /*------------------------------------------------------------------*/
 /*                            Resource                              */

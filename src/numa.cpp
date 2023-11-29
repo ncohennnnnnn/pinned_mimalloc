@@ -2,12 +2,13 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
-#include <log.hpp>
 #include <numa.h>
-#include <numa.hpp>
 #include <numaif.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
+//
+#include <pmimalloc/log.hpp>
+#include <pmimalloc/numa.hpp>
 
 #ifdef NUMA_THROWS
 # include <stdexcept>
