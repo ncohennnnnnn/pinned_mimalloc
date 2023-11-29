@@ -33,7 +33,7 @@ bool test_mirror_allocator_threaded(const int nb_threads, const int nb_allocs, s
                 {
                     allocation_type* ptr = a.allocate(sizeof(allocation_type));
                     ptrs[thread_id * nb_allocs + i] = ptr;
-                    allocation_type temp(thread_id * nb_allocs + i);
+                    allocation_type temp{thread_id * nb_allocs + i};
                     cudaMemcpy(ptr, &temp, sizeof(allocation_type), cudaMemcpyHostToDevice);
                 }
             },
@@ -59,7 +59,7 @@ bool test_mirror_allocator_threaded(const int nb_threads, const int nb_allocs, s
         else
         {
             ok = false;
-            fmt::print("[ERROR] from thread {}, expected {}, got {} \n", thread_id, i, *ptrs[i]);
+            fmt::print("[ERROR] from thread {}, expected {}, got {} \n", thread_id, i, temp);
         }
     }
 
