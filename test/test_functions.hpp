@@ -5,6 +5,38 @@
 //
 #include <pmimalloc/allocator.hpp>
 
+template <typename T, typename GetFunction, typename FreeFunction>
+bool check_array_values(int nb_arenas, int nb_allocs, int nb_threads, const std::vector<T*>& ptrs,
+    GetFunction&& get_fn, FreeFunction&& free_fn)
+{
+    bool ok = true;
+    try
+    {
+        for (int i = 0; i < nb_allocs * nb_arenas * nb_threads; ++i)
+        {
+            int thread_id = i / (nb_allocs * nb_arenas);
+            int arena_id = i / (nb_allocs * nb_threads);
+            T temp = get_fn(ptrs[i]);
+            if (temp == i)
+            {
+                free_fn(arena_id, ptrs[i]);
+            }
+            else
+            {
+                ok = false;
+                fmt::print("[ERROR] from thread {} and arena {}, expected {}, got {} \n", thread_id,
+                    arena_id, i, temp);
+            }
+        }
+    }
+    catch (...)
+    {
+        ok = false;
+    }
+    fmt::print("Memcheck finished : {}\n", ok);
+    return ok;
+}
+
 // ----------------------------------------------------------------------------
 // create arena, manually create 1 heap per thread, then
 // fill an array through several threads and deallocate all on thread
@@ -28,15 +60,14 @@ bool heap_per_thread(const int nb_threads, const int nb_allocs, std::size_t mem)
     {
         fmt::print("{} : Mimalloc arena created \n", base_ptr);
     }
-    fmt::print("\n");
 
     std::vector<mi_heap_t*> heaps(nb_threads, nullptr);
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
-    std::vector<std::thread> threads;
+    std::vector<std::jthread> threads;
 
     for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
     {
-        threads.push_back(std::thread{
+        threads.push_back(std::jthread{
             [&heaps, m_arena_id, &nb_allocs, &ptrs](int thread_id) mutable {
                 std::cout << thread_id << ": " << std::this_thread::get_id() << std::endl;
                 // std::cout << _mi_thread_id() << std::endl;
@@ -63,29 +94,13 @@ bool heap_per_thread(const int nb_threads, const int nb_allocs, std::size_t mem)
             },
             thread_id});
     }
-    for (auto& t : threads)
-    {
-        t.join();
-    }
-    fmt::print("finished\n");
+    threads.clear();    // jthreads join automatically
+    fmt::print("Allocation finished\n");
 
-    fmt::print("Clearing memory \n");
-
-    for (int i = 0; i < nb_allocs * nb_threads; ++i)
-    {
-        int thread_id = i / nb_allocs;
-        // fmt::print("{} \n", thread_id);
-        if (*ptrs[i] == i)
-        {
-            mi_free(ptrs[i]);
-        }
-        else
-        {
-            ok = false;
-            fmt::print("[ERROR] from thread {}, expected {}, got {} \n", thread_id, i, *ptrs[i]);
-        }
-    }
-    threads.clear();
+    auto get_fn = [](allocation_type* ptr) { return *ptr; };
+    auto free_fn = [](int /*alloc_index*/, allocation_type* ptr) { mi_free(ptr); };
+    ok = check_array_values(1, nb_allocs, nb_threads, ptrs, get_fn, free_fn);
+    ptrs.clear();
     return ok;
 }
 
@@ -103,48 +118,30 @@ bool test_allocator_threaded(const int nb_threads, const int nb_allocs, std::siz
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     alloc_t a(rb, mem);
 
-    fmt::print("\n\n");
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
-    std::vector<std::thread> threads;
+    std::vector<std::jthread> threads;
 
     for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
     {
         threads.push_back(
-            std::thread{[&a, &nb_allocs, &ptrs](int thread_id) mutable {
-                            fmt::print("{}: {}, \n", thread_id, std::this_thread::get_id());
-                            for (int i = 0; i < nb_allocs; ++i)
-                            {
-                                allocation_type* ptr = a.allocate(sizeof(allocation_type));
-                                ptrs[thread_id * nb_allocs + i] = ptr;
-                                *ptr = allocation_type(thread_id * nb_allocs + i);
-                            }
-                        },
+            std::jthread{[&a, &nb_allocs, &ptrs](int thread_id) mutable {
+                             fmt::print("{}: {}, \n", thread_id, std::this_thread::get_id());
+                             for (int i = 0; i < nb_allocs; ++i)
+                             {
+                                 allocation_type* ptr = a.allocate(sizeof(allocation_type));
+                                 ptrs[thread_id * nb_allocs + i] = ptr;
+                                 *ptr = allocation_type(thread_id * nb_allocs + i);
+                             }
+                         },
                 thread_id});
     }
 
-    for (auto& t : threads)
-    {
-        t.join();
-    }
-    fmt::print("finished\n");
-    fmt::print("Checking memory \n");
-    std::fflush(stdout);
-    for (int i = 0; i < nb_allocs * nb_threads; ++i)
-    {
-        int thread_id = i / nb_allocs;
-        if (*ptrs[i] == i)
-        {
-            a.deallocate(ptrs[i]);
-        }
-        else
-        {
-            ok = false;
-            fmt::print("[ERROR] from thread {}, expected {}, got {} \n", thread_id, i, *ptrs[i]);
-        }
-    }
+    threads.clear();    // jthreads join automatically
+    fmt::print("Allocation finished\n");
 
-    fmt::print("Checked ok\n");
-    threads.clear();
+    auto get_fn = [](allocation_type* ptr) { return *ptr; };
+    auto free_fn = [&a](int /*alloc_index*/, allocation_type* ptr) { a.deallocate(ptr); };
+    ok = check_array_values(1, nb_allocs, nb_threads, ptrs, get_fn, free_fn);
     ptrs.clear();
     return ok;
 }
@@ -168,19 +165,18 @@ bool test_allocator_threaded_multiarena(
         allocators.push_back(alloc_t{rb, mem});
     }
 
-    fmt::print("\n\n");
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs * nb_arenas, nullptr);
-    std::vector<std::thread> threads;
+    std::vector<std::jthread> threads;
     /* for(threads){for(arenas){for(allocs){...}}} */
     for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
     {
-        threads.push_back(std::thread{
+        threads.push_back(std::jthread{
             [&allocators, &nb_arenas, &nb_allocs, &ptrs](int thread_id) mutable {
                 // fmt::print("Thread ({}, {}) ", thread_id, std::this_thread::get_id());
-                for (int j = 0; j < nb_arenas; ++j)
+                // fmt::print("arena {} \n", j);
+                for (int i = 0; i < nb_allocs; ++i)
                 {
-                    // fmt::print("arena {} \n", j);
-                    for (int i = 0; i < nb_allocs; ++i)
+                    for (int j = 0; j < nb_arenas; ++j)
                     {
                         allocation_type* ptr = allocators[j].allocate(sizeof(allocation_type));
                         ptrs[thread_id * nb_arenas * nb_allocs + j * nb_allocs + i] = ptr;
@@ -191,32 +187,14 @@ bool test_allocator_threaded_multiarena(
             },
             thread_id});
     }
+    threads.clear();    // jthreads join automatically
+    fmt::print("Allocation finished\n");
 
-    for (auto& t : threads)
-    {
-        t.join();
-    }
-    fmt::print("finished\n");
-    fmt::print("Checking memory \n");
-    std::fflush(stdout);
-    for (int i = 0; i < nb_allocs * nb_arenas * nb_threads; ++i)
-    {
-        int thread_id = i / (nb_allocs * nb_arenas);
-        int arena_id = i / (nb_allocs * nb_threads);
-        if (*ptrs[i] == i)
-        {
-            allocators[arena_id].deallocate(ptrs[i]);
-        }
-        else
-        {
-            ok = false;
-            fmt::print("[ERROR] from thread {} and arena {}, expected {}, got {} \n", thread_id,
-                arena_id, i, *ptrs[i]);
-        }
-    }
-
-    fmt::print("Checked ok\n");
-    threads.clear();
+    auto get_fn = [](allocation_type* ptr) { return *ptr; };
+    auto free_fn = [&allocators](int alloc_index, allocation_type* ptr) {
+        allocators[alloc_index].deallocate(ptr);
+    };
+    ok = check_array_values(1, nb_allocs, nb_threads, ptrs, get_fn, free_fn);
     ptrs.clear();
     allocators.clear();
     return ok;

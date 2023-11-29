@@ -20,7 +20,6 @@ bool test_mirror_allocator_threaded(const int nb_threads, const int nb_allocs, s
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     alloc_t a(rb, mem);
 
-    fmt::print("\n\n");
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
     std::vector<std::thread> threads;
 
@@ -41,30 +40,18 @@ bool test_mirror_allocator_threaded(const int nb_threads, const int nb_allocs, s
     }
 
     for (auto& t : threads)
-    {
         t.join();
-    }
-    fmt::print("finished\n");
-    fmt::print("Checking memory \n");
-    std::fflush(stdout);
-    for (int i = 0; i < nb_allocs * nb_threads; ++i)
-    {
-        int thread_id = i / nb_allocs;
-        allocation_type temp{0};
-        cudaMemcpy(&temp, ptrs[i], sizeof(allocation_type), cudaMemcpyDeviceToHost);
-        if (temp == i)
-        {
-            a.deallocate(ptrs[i]);
-        }
-        else
-        {
-            ok = false;
-            fmt::print("[ERROR] from thread {}, expected {}, got {} \n", thread_id, i, temp);
-        }
-    }
-
-    fmt::print("Checked ok\n");
     threads.clear();
+    fmt::print("Allocation finished\n");
+
+    auto get_fn = [](allocation_type* ptr) {
+        allocation_type temp{0};
+        cudaMemcpy(&temp, ptr, sizeof(allocation_type), cudaMemcpyDeviceToHost);
+        return temp;
+    };
+    auto free_fn = [&a](int /*alloc_index*/, allocation_type* ptr) { a.deallocate(ptr); };
+
+    ok = check_array_values(1, nb_allocs, nb_threads, ptrs, get_fn, free_fn);
     ptrs.clear();
     return ok;
 }
