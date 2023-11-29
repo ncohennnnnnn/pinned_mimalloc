@@ -22,7 +22,6 @@
 #include <pmimalloc/backend_none.hpp>
 #include <pmimalloc/base.hpp>
 #include <pmimalloc/cuda_pinned.hpp>
-#include <pmimalloc/device_memory.hpp>
 #include <pmimalloc/ext_stdmalloc.hpp>
 #include <pmimalloc/host_memory.hpp>
 #include <pmimalloc/mirror_memory.hpp>
@@ -30,7 +29,6 @@
 #include <pmimalloc/not_pinned.hpp>
 #include <pmimalloc/pinned.hpp>
 #include <pmimalloc/simple.hpp>
-#include <pmimalloc/user_device_memory.hpp>
 #include <pmimalloc/user_host_memory.hpp>
 
 /*------------------------------------------------------------------*/
@@ -250,7 +248,7 @@ struct resource_builder
         return tmp.template updated<4, mirror_memory>();
     }
 
-    constexpr auto use_host_memory(/*void* ptr, const std::size_t size*/) const
+    constexpr auto use_host_memory() const
     {
         // memory resources are stored at position 4 in the resource nest
         return updated<4, user_host_memory>();

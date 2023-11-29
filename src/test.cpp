@@ -12,8 +12,8 @@
     - Fix segfault
     - how to extend the arena size ?
 
-    - make the mirroring more flexible (host/host, higher number of memory chunks entangled)
-     and make it modular
+    - make the mirroring more flexible (host/host, higher number of memory chunks 
+      entangled) and make it modular
 
     - numa node stuff, steal it from Fabian and get how to use it
 
@@ -21,7 +21,8 @@
     - UCX
     - MPI
 
-    - in ext_stdmalloc change std::malloc to a pmr::malloc on the context (+ numa stuf ?)
+    - in ext_stdmalloc change std::malloc to a pmr::malloc on the context 
+      (+ numa stuff ?)
 */
 
 // void mi_heap_destroy(mi_heap_t* heap);

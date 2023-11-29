@@ -80,10 +80,10 @@ bool test_allocator_threaded(const int nb_threads, const int nb_allocs, std::siz
     using allocation_type = std::int64_t;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().register_memory().on_host(mem);
+    auto rb = RB.use_mimalloc().pin().register_memory().on_host();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
-    alloc_t a(rb);
+    alloc_t a(rb, mem);
 
     fmt::print("\n\n");
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
