@@ -52,7 +52,7 @@ int main()
 {
     // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
     std::size_t mem = 1ull << 29;
-    const int nb_threads = 1;
+    const int nb_threads = 4;
     const int nb_allocs = 100000;
 
 #define USE_ALLOC
@@ -61,22 +61,18 @@ int main()
 #ifdef USE_ALLOC
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().register_memory().on_mirror();
+    auto rb = RB.use_mimalloc().pin().register_memory().on_host();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<uint32_t, resource_t>;
     alloc_t a(rb, mem);
-    resource_builder RB2;
-    auto rb2 = RB2.use_mimalloc().pin().register_memory().on_host();
-    using resource_t2 = decltype(rb2.build());
-    using alloc_t2 = pmimallocator<uint32_t, resource_t2>;
-    alloc_t2 a2(rb2, mem);
+    alloc_t b(rb, mem);
 
     fmt::print("\n\n");
 
     {
         /* Fill an array through several threads and deallocate all on thread 0*/
         fill_array_multithread(nb_threads, nb_allocs, a);
-        fill_array_multithread(nb_threads, nb_allocs, a2);
+        fill_array_multithread(nb_threads, nb_allocs, b);
     }
     // usual_alloc<uint32_t>(a);
 

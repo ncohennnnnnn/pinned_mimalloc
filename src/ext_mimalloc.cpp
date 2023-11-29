@@ -51,19 +51,6 @@ ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_nod
         {
             fmt::print("{} : Mimalloc arena created \n", ptr);
         }
-
-        if (!tl_ext_mimalloc_heaps.contains(m_arena_id))
-        {
-            // auto my_delete = [](mi_heap_t* heap) {
-            //     fmt::print("ext_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
-            //     mi_heap_destroy(heap);
-            // };
-            tl_ext_mimalloc_heaps[m_arena_id] = mi_heap_new_in_arena(m_arena_id);
-            //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
-            fmt::print("ext_mimalloc:: New thread local backing heap {} ",
-                (void*) (tl_ext_mimalloc_heaps[m_arena_id]));
-        }
-        // mi_heap_set_default(tl_ext_mimalloc_heaps[m_arena_id]);
     }
 }
 
@@ -83,7 +70,7 @@ void* ext_mimalloc::allocate(const std::size_t size, const std::size_t alignment
         // };
         tl_ext_mimalloc_heaps[m_arena_id] = mi_heap_new_in_arena(m_arena_id);
         //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
-        fmt::print("ext_mimalloc:: New thread local backing heap {} ",
+        fmt::print("ext_mimalloc:: New thread local heap {} ",
             (void*) (tl_ext_mimalloc_heaps[m_arena_id]));
     }
 
@@ -105,7 +92,7 @@ void* ext_mimalloc::reallocate(void* ptr, std::size_t size)
 {
     if (!tl_ext_mimalloc_heaps.contains(m_arena_id))
     {
-        fmt::print("ERROR!!! how can this happpen \n");
+        fmt::print("ERROR!!! how can this happpen (in reallocate) \n");
     }
     return mi_heap_realloc(tl_ext_mimalloc_heaps[m_arena_id], ptr, size);
 }
@@ -143,17 +130,17 @@ mi_heap_t* ext_mimalloc::get_heap()
 
 ext_mimalloc::~ext_mimalloc()
 {
-    if (!tl_ext_mimalloc_heaps.contains(m_arena_id))
-    {
-        fmt::print("ERROR!!! how can this happpen \n");
-    }
-    else
+    if (tl_ext_mimalloc_heaps.contains(m_arena_id))
     {
         if (tl_ext_mimalloc_heaps[m_arena_id]->page_count != 0)
         {
-            fmt::print("Heap not empty ! \n");
+            fmt::print("Heap not empty : calling mi_heap_destroy \n");
             mi_heap_destroy(tl_ext_mimalloc_heaps[m_arena_id]);
             // _mi_heap_destroy_pages(tl_ext_mimalloc_heaps[m_arena_id]);
+        }
+        else
+        {
+            fmt::print("[error] Heap still alive at end of arena lifetime! \n");
         }
     }
 }

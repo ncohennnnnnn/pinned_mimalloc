@@ -148,3 +148,76 @@ bool test_allocator_threaded(const int nb_threads, const int nb_allocs, std::siz
     ptrs.clear();
     return ok;
 }
+
+// ----------------------------------------------------------------------------
+// create an allocator using a custom arena then
+// fill an array through several threads and deallocate all on thread
+template <typename allocation_type>
+bool test_allocator_threaded_multiarena(
+    const int nb_arenas, const int nb_threads, const int nb_allocs, std::size_t mem)
+{
+    bool ok = true;
+    /* Build resource and allocator via resource_builder */
+    resource_builder RB;
+    auto rb = RB.use_mimalloc().pin().register_memory().on_host();
+    using resource_t = decltype(rb.build());
+    using alloc_t = pmimallocator<allocation_type, resource_t>;
+    std::vector<alloc_t> allocators;
+    for (int i = 0; i < nb_arenas; ++i)
+    {
+        allocators.push_back(alloc_t{rb, mem});
+    }
+
+    fmt::print("\n\n");
+    std::vector<allocation_type*> ptrs(nb_threads * nb_allocs * nb_arenas, nullptr);
+    std::vector<std::thread> threads;
+    /* for(threads){for(arenas){for(allocs){...}}} */
+    for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
+    {
+        threads.push_back(std::thread{
+            [&allocators, &nb_arenas, &nb_allocs, &ptrs](int thread_id) mutable {
+                // fmt::print("Thread ({}, {}) ", thread_id, std::this_thread::get_id());
+                for (int j = 0; j < nb_arenas; ++j)
+                {
+                    // fmt::print("arena {} \n", j);
+                    for (int i = 0; i < nb_allocs; ++i)
+                    {
+                        allocation_type* ptr = allocators[j].allocate(sizeof(allocation_type));
+                        ptrs[thread_id * nb_arenas * nb_allocs + j * nb_allocs + i] = ptr;
+                        *ptr =
+                            allocation_type(thread_id * nb_allocs * nb_arenas + j * nb_allocs + i);
+                    }
+                }
+            },
+            thread_id});
+    }
+
+    for (auto& t : threads)
+    {
+        t.join();
+    }
+    fmt::print("finished\n");
+    fmt::print("Checking memory \n");
+    std::fflush(stdout);
+    for (int i = 0; i < nb_allocs * nb_arenas * nb_threads; ++i)
+    {
+        int thread_id = i / (nb_allocs * nb_arenas);
+        int arena_id = i / (nb_allocs * nb_threads);
+        if (*ptrs[i] == i)
+        {
+            allocators[arena_id].deallocate(ptrs[i]);
+        }
+        else
+        {
+            ok = false;
+            fmt::print("[ERROR] from thread {} and arena {}, expected {}, got {} \n", thread_id,
+                arena_id, i, *ptrs[i]);
+        }
+    }
+
+    fmt::print("Checked ok\n");
+    threads.clear();
+    ptrs.clear();
+    allocators.clear();
+    return ok;
+}
