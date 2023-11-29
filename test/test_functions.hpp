@@ -5,9 +5,46 @@
 //
 #include <pmimalloc/allocator.hpp>
 
+// ----------------------------------------------------------------------------
+template <typename T, typename AllocFunction, typename SetFunction>
+bool fill_array_values(const int nb_threads, const int nb_arenas, const int nb_allocs,
+    std::vector<T*>& ptrs, AllocFunction&& alloc_fn, SetFunction&& set_fn)
+{
+    try
+    {
+        ptrs.resize(nb_threads * nb_arenas * nb_allocs, nullptr);
+        std::vector<std::jthread> threads;
+        for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
+        {
+            threads.push_back(std::jthread{
+                [nb_arenas, nb_allocs, alloc_fn, set_fn, &ptrs](int thread_id) mutable {
+                    for (int i = 0; i < nb_allocs; ++i)
+                    {
+                        for (int j = 0; j < nb_arenas; ++j)
+                        {
+                            T* ptr = alloc_fn(j);
+                            ptrs[thread_id * nb_arenas * nb_allocs + j * nb_allocs + i] = ptr;
+                            set_fn(ptr, T{thread_id * nb_allocs * nb_arenas + j * nb_allocs + i});
+                        }
+                    }
+                },
+                thread_id});
+        }
+        threads.clear();    // jthreads join automatically
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    fmt::print("Allocation finished\n");
+    return true;
+}
+
+// ----------------------------------------------------------------------------
 template <typename T, typename GetFunction, typename FreeFunction>
-bool check_array_values(int nb_arenas, int nb_allocs, int nb_threads, const std::vector<T*>& ptrs,
-    GetFunction&& get_fn, FreeFunction&& free_fn)
+bool check_array_values(const int nb_threads, const int nb_arenas, const int nb_allocs,
+    const std::vector<T*>& ptrs, GetFunction&& get_fn, FreeFunction&& free_fn)
 {
     bool ok = true;
     try
@@ -60,46 +97,29 @@ bool heap_per_thread(const int nb_threads, const int nb_allocs, std::size_t mem)
     {
         fmt::print("{} : Mimalloc arena created \n", base_ptr);
     }
-
     std::vector<mi_heap_t*> heaps(nb_threads, nullptr);
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
-    std::vector<std::jthread> threads;
-
-    for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
-    {
-        threads.push_back(std::jthread{
-            [&heaps, m_arena_id, &nb_allocs, &ptrs](int thread_id) mutable {
-                std::cout << thread_id << ": " << std::this_thread::get_id() << std::endl;
-                // std::cout << _mi_thread_id() << std::endl;
-                // heaps[thread_id] = mi_heap_new_in_arena(m_arena_id);
-                if (!thread_local_heap_)
-                {
-                    fmt::print("New heap on thread {}\n", thread_id);
-                    auto my_delete = [](mi_heap_t* heap) {
-                        fmt::print("NOT Deleting heap (it's safe) {}\n", (void*) (heap));
-                        mi_heap_collect(heap, 0);
-                        // mi_heap_destroy(heap);
-                    };
-                    thread_local_heap_ =
-                        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
-                }
-                fmt::print("{}: {}, \n", thread_id, std::this_thread::get_id());
-                for (int i = 0; i < nb_allocs; ++i)
-                {
-                    allocation_type* ptr = static_cast<allocation_type*>(
-                        mi_heap_malloc(thread_local_heap_.get(), sizeof(allocation_type)));
-                    ptrs[thread_id * nb_allocs + i] = ptr;
-                    *ptr = allocation_type(thread_id * nb_allocs + i);
-                }
-            },
-            thread_id});
-    }
-    threads.clear();    // jthreads join automatically
-    fmt::print("Allocation finished\n");
-
+    //
+    auto alloc_fn = [m_arena_id](int /*arena_index*/) {
+        if (!thread_local_heap_)
+        {
+            fmt::print("New heap on thread {}\n", std::this_thread::get_id());
+            auto my_delete = [](mi_heap_t* heap) {
+                fmt::print("NOT Deleting heap (it's safe) {}\n", (void*) (heap));
+                // mi_heap_collect(heap, 0);
+                // mi_heap_destroy(heap);
+            };
+            thread_local_heap_ = unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
+        }
+        return static_cast<allocation_type*>(
+            mi_heap_malloc(thread_local_heap_.get(), sizeof(allocation_type)));
+    };
+    auto set_fn = [](allocation_type* ptr, allocation_type temp) { *ptr = temp; };
+    ok &= fill_array_values(nb_threads, 1, nb_allocs, ptrs, alloc_fn, set_fn);
+    //
     auto get_fn = [](allocation_type* ptr) { return *ptr; };
-    auto free_fn = [](int /*alloc_index*/, allocation_type* ptr) { mi_free(ptr); };
-    ok = check_array_values(1, nb_allocs, nb_threads, ptrs, get_fn, free_fn);
+    auto free_fn = [](int /*arena_index*/, allocation_type* ptr) { mi_free(ptr); };
+    ok &= check_array_values(nb_threads, 1, nb_allocs, ptrs, get_fn, free_fn);
     ptrs.clear();
     return ok;
 }
@@ -117,31 +137,16 @@ bool test_allocator_threaded(const int nb_threads, const int nb_allocs, std::siz
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     alloc_t a(rb, mem);
-
+    //
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
-    std::vector<std::jthread> threads;
-
-    for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
-    {
-        threads.push_back(
-            std::jthread{[&a, &nb_allocs, &ptrs](int thread_id) mutable {
-                             fmt::print("{}: {}, \n", thread_id, std::this_thread::get_id());
-                             for (int i = 0; i < nb_allocs; ++i)
-                             {
-                                 allocation_type* ptr = a.allocate(sizeof(allocation_type));
-                                 ptrs[thread_id * nb_allocs + i] = ptr;
-                                 *ptr = allocation_type(thread_id * nb_allocs + i);
-                             }
-                         },
-                thread_id});
-    }
-
-    threads.clear();    // jthreads join automatically
-    fmt::print("Allocation finished\n");
-
+    //
+    auto alloc_fn = [&a](int /*arena_index*/) { return a.allocate(sizeof(allocation_type)); };
+    auto set_fn = [](allocation_type* ptr, allocation_type temp) { *ptr = temp; };
+    ok &= fill_array_values(nb_threads, 1, nb_allocs, ptrs, alloc_fn, set_fn);
+    //
     auto get_fn = [](allocation_type* ptr) { return *ptr; };
-    auto free_fn = [&a](int /*alloc_index*/, allocation_type* ptr) { a.deallocate(ptr); };
-    ok = check_array_values(1, nb_allocs, nb_threads, ptrs, get_fn, free_fn);
+    auto free_fn = [&a](int /*arena_index*/, allocation_type* ptr) { a.deallocate(ptr); };
+    ok &= check_array_values(nb_threads, 1, nb_allocs, ptrs, get_fn, free_fn);
     ptrs.clear();
     return ok;
 }
@@ -164,38 +169,53 @@ bool test_allocator_threaded_multiarena(
     {
         allocators.push_back(alloc_t{rb, mem});
     }
-
+    //
     std::vector<allocation_type*> ptrs(nb_threads * nb_allocs * nb_arenas, nullptr);
-    std::vector<std::jthread> threads;
-    /* for(threads){for(arenas){for(allocs){...}}} */
-    for (std::size_t thread_id = 0; thread_id < nb_threads; ++thread_id)
-    {
-        threads.push_back(std::jthread{
-            [&allocators, &nb_arenas, &nb_allocs, &ptrs](int thread_id) mutable {
-                // fmt::print("Thread ({}, {}) ", thread_id, std::this_thread::get_id());
-                // fmt::print("arena {} \n", j);
-                for (int i = 0; i < nb_allocs; ++i)
-                {
-                    for (int j = 0; j < nb_arenas; ++j)
-                    {
-                        allocation_type* ptr = allocators[j].allocate(sizeof(allocation_type));
-                        ptrs[thread_id * nb_arenas * nb_allocs + j * nb_allocs + i] = ptr;
-                        *ptr =
-                            allocation_type(thread_id * nb_allocs * nb_arenas + j * nb_allocs + i);
-                    }
-                }
-            },
-            thread_id});
-    }
-    threads.clear();    // jthreads join automatically
-    fmt::print("Allocation finished\n");
-
-    auto get_fn = [](allocation_type* ptr) { return *ptr; };
-    auto free_fn = [&allocators](int alloc_index, allocation_type* ptr) {
-        allocators[alloc_index].deallocate(ptr);
+    //
+    auto alloc_fn = [&allocators](int arena_index) {
+        return allocators[arena_index].allocate(sizeof(allocation_type));
     };
-    ok = check_array_values(1, nb_allocs, nb_threads, ptrs, get_fn, free_fn);
+    auto set_fn = [](allocation_type* ptr, allocation_type temp) { *ptr = temp; };
+    ok &= fill_array_values(nb_threads, 1, nb_allocs, ptrs, alloc_fn, set_fn);
+    //
+    auto get_fn = [](allocation_type* ptr) { return *ptr; };
+    auto free_fn = [&allocators](int arena_index, allocation_type* ptr) {
+        allocators[arena_index].deallocate(ptr);
+    };
+    ok &= check_array_values(nb_threads, 1, nb_allocs, ptrs, get_fn, free_fn);
     ptrs.clear();
     allocators.clear();
+    return ok;
+}
+
+// ----------------------------------------------------------------------------
+// Test mirror allocator using cudamalloc/cudafree
+template <typename allocation_type>
+bool test_mirror_allocator_threaded(const int nb_threads, const int nb_allocs, std::size_t mem)
+{
+    bool ok = true;
+    // Build resource and allocator via resource_builder
+    resource_builder RB;
+    auto rb = RB.use_mimalloc().pin().register_memory().on_mirror();
+    using resource_t = decltype(rb.build());
+    using alloc_t = pmimallocator<allocation_type, resource_t>;
+    alloc_t a(rb, mem);
+    //
+    std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
+    //
+    auto alloc_fn = [&a](int /*arena_index*/) { return a.allocate(sizeof(allocation_type)); };
+    auto set_fn = [](allocation_type* ptr, allocation_type temp) {
+        cudaMemcpy(ptr, &temp, sizeof(allocation_type), cudaMemcpyHostToDevice);
+    };
+    ok &= fill_array_values(nb_threads, 1, nb_allocs, ptrs, alloc_fn, set_fn);
+    //
+    auto get_fn = [](allocation_type* ptr) {
+        allocation_type temp{0};
+        cudaMemcpy(&temp, ptr, sizeof(allocation_type), cudaMemcpyDeviceToHost);
+        return temp;
+    };
+    auto free_fn = [&a](int /*arena_index*/, allocation_type* ptr) { a.deallocate(ptr); };
+    ok &= check_array_values(nb_threads, 1, nb_allocs, ptrs, get_fn, free_fn);
+    ptrs.clear();
     return ok;
 }
