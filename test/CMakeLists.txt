@@ -1,4 +1,6 @@
-set(TEST_SRCS test_heap_per_thread test_allocator)
+set(TEST_SRCS test_heap_per_thread test_heap_per_thread_N test_allocator
+              test_allocator_N
+)
 
 # ------------------------------------------------------------------------------
 # create exes for tests

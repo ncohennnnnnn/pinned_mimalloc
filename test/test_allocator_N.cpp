@@ -1,4 +1,3 @@
-#include <barrier>
 #include <iostream>
 #include <math.h>
 //
@@ -16,8 +15,13 @@ int main()
 
     // Fill an array through several threads and deallocate all on thread 0
     bool ok = true;
-    std::cout << "Testing heap per thread " << std::endl;
-    ok &= heap_per_thread<int>(nb_threads, nb_allocs, mem);
+    for (int i = 0; i < 5; ++i)
+    {
+        std::cout << "Testing allocator threaded " << i << std::endl;
+        ok &= test_allocator_threaded<int>(nb_threads, nb_allocs, mem);
+    }
+    ok &= test_allocator_threaded<std::uint64_t>(nb_threads, nb_allocs, mem);
+    ok &= test_allocator_threaded<double>(nb_threads, nb_allocs, mem);
 
     return (ok == true) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

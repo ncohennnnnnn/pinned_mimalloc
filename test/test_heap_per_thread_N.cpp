@@ -16,8 +16,13 @@ int main()
 
     // Fill an array through several threads and deallocate all on thread 0
     bool ok = true;
-    std::cout << "Testing heap per thread " << std::endl;
-    ok &= heap_per_thread<int>(nb_threads, nb_allocs, mem);
+    for (int i = 0; i < 5; ++i)
+    {
+        std::cout << "Testing heap per thread " << i << std::endl;
+        ok &= heap_per_thread<int>(nb_threads, nb_allocs, mem);
+    }
+    ok &= heap_per_thread<std::uint64_t>(nb_threads, nb_allocs, mem);
+    ok &= heap_per_thread<double>(nb_threads, nb_allocs, mem);
 
     return (ok == true) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
