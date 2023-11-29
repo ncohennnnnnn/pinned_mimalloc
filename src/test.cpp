@@ -12,7 +12,8 @@
     - Fix segfault
     - how to extend the arena size ?
 
-    - fix the need for the right order in the resource_builder
+    - make the mirroring more flexible (host/host, higher number of memory chunks 
+      entangled) and make it modular
 
     - numa node stuff, steal it from Fabian and get how to use it
 
@@ -20,7 +21,8 @@
     - UCX
     - MPI
 
-    - in ext_stdmalloc change std::malloc to a pmr::malloc on the context (+ numa stuf ?)
+    - in ext_stdmalloc change std::malloc to a pmr::malloc on the context 
+      (+ numa stuff ?)
 */
 
 // void mi_heap_destroy(mi_heap_t* heap);
@@ -59,15 +61,22 @@ int main()
 #ifdef USE_ALLOC
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().register_memory().on_mirror(mem);
+    auto rb = RB.use_mimalloc().pin().register_memory().on_mirror();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<uint32_t, resource_t>;
-    alloc_t a(rb);
+    alloc_t a(rb, mem);
+    resource_builder RB2;
+    auto rb2 = RB2.use_mimalloc().pin().register_memory().on_host();
+    using resource_t2 = decltype(rb2.build());
+    using alloc_t2 = pmimallocator<uint32_t, resource_t2>;
+    alloc_t2 a2(rb2, mem);
+
     fmt::print("\n\n");
 
     {
         /* Fill an array through several threads and deallocate all on thread 0*/
         fill_array_multithread(nb_threads, nb_allocs, a);
+        fill_array_multithread(nb_threads, nb_allocs, a2);
     }
     // usual_alloc<uint32_t>(a);
 
