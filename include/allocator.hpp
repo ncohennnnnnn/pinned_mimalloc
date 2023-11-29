@@ -15,7 +15,6 @@ class pmimallocator
 {
 public:
     /* Types */
-    // using base = pmimallocator<T, Resource>;
     using this_type = pmimallocator<T, Resource>;
     using resource_type = Resource;
     using shared_resource = std::shared_ptr<Resource>;
@@ -48,15 +47,23 @@ public:
       : m_sptr_resource{r}
     {
     }
+
     /* Construct from a resource_builder */
-    template <typename Args>
-    pmimallocator(const resource_builder<resource_type, Args>& rb) noexcept
-      : m_sptr_resource{rb.sbuild()}
+    template <typename... Args>
+    pmimallocator(resource_builder<resource_type /*, Args*/> rb, Args... a) noexcept
+      : m_sptr_resource{rb.sbuild(std::move(a)...)}
     {
     }
+
     /* Construct from a resource */
     pmimallocator(const resource_type& r) noexcept
       : m_sptr_resource{std::make_shared<resource_type>(r)}
+    {
+    }
+
+    template <typename U>
+    pmimallocator(const pmimallocator<U, Resource>& other)
+      : m_sptr_resource{other.m_sptr_resource}
     {
     }
 
@@ -68,18 +75,10 @@ public:
         return *this;
     }
 
-    template <class U>
-    pmimallocator(const pmimallocator<U, Resource>& other)
-      : m_sptr_resource{other.m_sptr_resource}
-    {
-    }
-
     /* Destructor */
-
     ~pmimallocator() {}
 
     /* Allocate */
-
     [[nodiscard]] T* allocate(const std::size_t n /*, const std::size_t alignment = 0 */)
     {
         if (n > std::numeric_limits<size_type>::max() / sizeof(T))
