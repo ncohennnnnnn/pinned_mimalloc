@@ -4,12 +4,19 @@ project(pmimalloc)
 # ------------------------------------------------------------------------------
 # Policies
 # ------------------------------------------------------------------------------
-cmake_policy(SET CMP0028 NEW) # Double colon in target name means ALIAS or
-# IMPORTED target
-cmake_policy(SET CMP0060 NEW) # Link libraries by full path even in implicit
-# directories
-cmake_policy(SET CMP0074 NEW) # find_package uses XXX_ROOT vars
-# cmake_policy(SET CMP0144 NEW) # find_package xxx_ROOT cases sensitivity
+function(set_policy POLICY_NAME POLICY_VALUE)
+  if(POLICY ${POLICY_NAME})
+    cmake_policy(SET ${POLICY_NAME} ${POLICY_VALUE})
+  endif()
+endfunction()
+
+set_policy(CMP0028 NEW) # Double colon in target name means ALIAS or IMPORTED
+                        # target
+set_policy(CMP0060 NEW) # Link libraries by full path even in implicit
+                        # directories
+set_policy(CMP0074 NEW) # find_package uses XXX_ROOT vars using PackageName
+set_policy(CMP0144 NEW) # find_package uses XXX_ROOT vars using PACKAGENAME
+                        # Uppercase.
 
 # ------------------------------------------------------------------------------
 # Enable testing
@@ -49,8 +56,10 @@ option(PMIMALLOC_WITH_MIMALLOC ON)
 # ------------------------------------------------------------------------------
 # Create config file
 # ------------------------------------------------------------------------------
-configure_file(${PROJECT_SOURCE_DIR}/cmake/config.hpp.in
-               ${PROJECT_SOURCE_DIR}/include/config.hpp)
+configure_file(
+  ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in
+  ${PROJECT_SOURCE_DIR}/include/config.hpp
+)
 
 # ------------------------------------------------------------------------------
 # Cmake module path for find_package
@@ -62,13 +71,16 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # ------------------------------------------------------------------------------
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
     ${PROJECT_BINARY_DIR}/bin
-    CACHE PATH "Single Directory for all Executables.")
+    CACHE PATH "Single Directory for all Executables."
+)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
     ${PROJECT_BINARY_DIR}/bin
-    CACHE PATH "Single Directory for all Libraries")
+    CACHE PATH "Single Directory for all Libraries"
+)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY
     ${PROJECT_BINARY_DIR}/bin
-    CACHE PATH "Single Directory for all static libraries.")
+    CACHE PATH "Single Directory for all static libraries."
+)
 
 # ------------------------------------------------------------------------------
 # Finding libraries
@@ -91,9 +103,12 @@ message(STATUS "Found HWLOC : ${HWLOC_FOUND}")
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE
       "Release"
-      CACHE STRING "Choose the type of build." FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-                                               "MinSizeRel" "RelWithDebInfo")
+      CACHE STRING "Choose the type of build." FORCE
+  )
+  set_property(
+    CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel"
+                                    "RelWithDebInfo"
+  )
 endif()
 
 # ---------------------------------------------------------------------
@@ -101,13 +116,16 @@ endif()
 # ---------------------------------------------------------------------
 set(ENABLE_LOGGING
     OFF
-    CACHE BOOL "print logging info to cerr")
+    CACHE BOOL "print logging info to cerr"
+)
 
 # ---------------------------------------------------------------------
 # Generate config file
 # ---------------------------------------------------------------------
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.hpp.in
-               ${CMAKE_CURRENT_BINARY_DIR}/include/config.hpp @ONLY)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.hpp.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/config.hpp @ONLY
+)
 
 # ---------------------------------------------------------------------
 # Logging
@@ -120,8 +138,7 @@ endif()
 # mimalloc must be found or compiled in place
 # ---------------------------------------------------------------------
 include(external)
-# set(MI_OVERRIDE OFF)
-# set(MI_SKIP_COLLECT_ON_EXIT OFF)
+# set(MI_OVERRIDE OFF) set(MI_SKIP_COLLECT_ON_EXIT OFF)
 get_external_project(
   PROJECT_NAME
   "mimalloc"
@@ -132,12 +149,19 @@ get_external_project(
   PREFER_LOCAL # we want to debug mimalloc, so prefer building locally
 )
 
+if(NOT MI_SKIP_COLLECT_ON_EXIT)
+  message(
+    FATAL_ERROR "Please rerun cmake using 'cmake -DMI_SKIP_COLLECT_ON_EXIT=ON'"
+  )
+endif()
+
 # ------------------------------------------------------------------------------
 # Choice of backend provider
 # ------------------------------------------------------------------------------
 set(BACKEND
     "none"
-    CACHE STRING "Choose the type of the backend.")
+    CACHE STRING "Choose the type of the backend."
+)
 set_property(CACHE BACKEND PROPERTY STRINGS "libfabric" "ucx" "mpi" "none")
 
 string(TOUPPER ${BACKEND} BACKEND_U)
@@ -145,30 +169,37 @@ string(TOUPPER ${BACKEND} BACKEND_U)
 # set(BACKEND_ ${BACKEND_U} CACHE INTERNAL "" FORCE) set(PMIMALLOC_DEVICE
 # "PMIMALLOC_DEVICE_${BACKEND_}" CACHE INTERNAL "" FORCE)
 if(${BACKEND} STREQUAL "none")
-    set(BACKEND_SOURCE src/ext_mimalloc.cpp src/numa.cpp ${PMI_LOG_SRC})
+  set(BACKEND_SOURCE src/ext_mimalloc.cpp src/numa.cpp ${PMI_LOG_SRC})
 else()
-    set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/ext_mimalloc.cpp src/numa.cpp
-                    ${PMI_LOG_SRC})
+  set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/ext_mimalloc.cpp
+                     src/numa.cpp ${PMI_LOG_SRC}
+  )
 endif()
 add_library(pmimalloc_${BACKEND} SHARED ${BACKEND_SOURCE})
-target_compile_definitions(pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC
-                                                       WITH_${BACKEND_U})
-set_target_properties(pmimalloc_${BACKEND} PROPERTIES PUBLIC_HEADER
-                                                      include/allocator.h)
-target_include_directories(pmimalloc_${BACKEND} PUBLIC include src/${BACKEND}
-                                                       ext/mimalloc/include)
+target_compile_definitions(
+  pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC WITH_${BACKEND_U}
+)
+set_target_properties(
+  pmimalloc_${BACKEND} PROPERTIES PUBLIC_HEADER include/allocator.h
+)
+target_include_directories(
+  pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include
+)
 target_link_libraries(
   pmimalloc_${BACKEND}
-  PRIVATE fmt::fmt-header-only NUMA::libnuma CUDA::cudart
-  PUBLIC mimalloc)
+  PUBLIC fmt::fmt-header-only NUMA::libnuma CUDA::cudart
+  PUBLIC mimalloc
+)
 
 install(
   TARGETS pmimalloc_${BACKEND}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
 install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig
+)
 
 if(${BACKEND} STREQUAL "libfabric")
   # ----------------------------
@@ -182,7 +213,8 @@ if(${BACKEND} STREQUAL "libfabric")
   target_link_libraries(
     pmimalloc_${BACKEND}
     PRIVATE Boost::boost
-    PUBLIC libfabric::libfabric)
+    PUBLIC libfabric::libfabric
+  )
 
 elseif(${BACKEND} STREQUAL "ucx")
   # ----------------------------
@@ -207,18 +239,19 @@ elseif(${BACKEND} STREQUAL "none")
   message("No backend selected.")
 endif()
 
-add_library(pmimalloc_target ALIAS pmimalloc_${BACKEND})
+add_library(pmimalloc ALIAS pmimalloc_${BACKEND})
 
 # ------------------------------------------------------------------------------
 # Building executable target
 # ------------------------------------------------------------------------------
-add_executable(pmimalloc src/test.cpp)
-target_include_directories(pmimalloc PUBLIC include)
+add_executable(test_pmimalloc src/test.cpp)
+target_include_directories(test_pmimalloc PUBLIC include)
 target_link_libraries(
-  pmimalloc
+  test_pmimalloc
   PRIVATE fmt::fmt-header-only NUMA::libnuma CUDA::cudart HWLOC::libhwloc
-  PUBLIC mimalloc pmimalloc_${BACKEND})
-target_compile_definitions(pmimalloc PRIVATE PMIMALLOC_WITH_MIMALLOC)
+  PUBLIC mimalloc pmimalloc_${BACKEND}
+)
+target_compile_definitions(test_pmimalloc PRIVATE PMIMALLOC_WITH_MIMALLOC)
 # target_compile_definitions(pmimalloc PRIVATE -DMI_OVERRIDE=OFF )
 
 # ---------------------------------------------------------------------
@@ -254,3 +287,7 @@ target_compile_definitions(pmimalloc PRIVATE PMIMALLOC_WITH_MIMALLOC)
 # create a `ctest` test that executes the pinned allocator note that ctest
 # doesn't use a shell, so we can't redirect the output to a file using the usual
 # '>' operator add_test(NAME pmimalloc COMMAND "$<TARGET_FILE:pmimalloc>")
+
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()

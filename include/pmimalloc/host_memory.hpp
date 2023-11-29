@@ -8,10 +8,10 @@
 #include <stdexcept>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#include <numa.hpp>
-
+//
 #include <fmt/core.h>
+//
+#include <pmimalloc/numa.hpp>
 
 #if PMIMALLOC_WITH_MIMALLOC
 # ifndef MIMALLOC_SEGMENT_ALIGNED_SIZE

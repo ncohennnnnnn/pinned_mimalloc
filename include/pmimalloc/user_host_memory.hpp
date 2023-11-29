@@ -9,8 +9,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <numa.hpp>
-
 #include <fmt/core.h>
 
 #if PMIMALLOC_WITH_MIMALLOC
@@ -19,7 +17,7 @@
 # endif
 #endif
 
-#include <host_memory.hpp>
+#include <pmimalloc/host_memory.hpp>
 
 template <typename Base>
 /** @brief Already allocated memory living on the host. */

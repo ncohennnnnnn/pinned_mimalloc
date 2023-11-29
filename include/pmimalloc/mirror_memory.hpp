@@ -8,11 +8,11 @@
 #include <stdexcept>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#include <numa.hpp>
-
+//
 #include <cuda_runtime.h>
 #include <fmt/core.h>
+//
+#include <pmimalloc/numa.hpp>
 
 #if PMIMALLOC_WITH_MIMALLOC
 # ifndef MIMALLOC_SEGMENT_ALIGNED_SIZE
@@ -27,7 +27,7 @@
 #define PMIMALLOC_USE_MMAP
 
 template <typename Base>
-/** @brief Memory mirrored on the host and device. 
+/** @brief Memory mirrored on the host and device.
  * TODO:  do we need to know the device id ?
 */
 class mirror_memory : public Base
