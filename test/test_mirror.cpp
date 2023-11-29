@@ -79,7 +79,7 @@ int main()
     // Fill an array through several threads and deallocate all on thread 0
     bool ok = true;
     std::cout << "Testing allocator threaded " << std::endl;
-    ok &= test_allocator_threaded<int>(nb_threads, nb_allocs, mem);
+    ok &= test_mirror_allocator_threaded<int>(nb_threads, nb_allocs, mem);
 
     return (ok == true) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
