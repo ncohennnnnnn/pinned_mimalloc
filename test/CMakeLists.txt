@@ -1,4 +1,4 @@
-set(TEST_SRCS test_arena)
+set(TEST_SRCS test_heap_per_thread test_allocator)
 
 # ------------------------------------------------------------------------------
 # create exes for tests
