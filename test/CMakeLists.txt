@@ -1,5 +1,5 @@
 set(TEST_SRCS test_heap_per_thread test_heap_per_thread_N test_allocator
-              test_allocator_N
+              test_allocator_N test_mirror
 )
 
 # ------------------------------------------------------------------------------
