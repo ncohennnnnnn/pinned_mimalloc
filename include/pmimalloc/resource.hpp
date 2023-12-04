@@ -69,10 +69,17 @@ public:
     {
     }
 
+#if (defined(WITH_MIMALLOC) && defined(USE_TL_VECTOR))
+    void* allocate(const std::size_t size, const std::size_t idx, const std::size_t alignment = 0)
+    {
+        return m_malloc.allocate(size, idx, alignment);
+    }
+#else
     void* allocate(const std::size_t size, const std::size_t alignment = 0)
     {
         return m_malloc.allocate(size, alignment);
     }
+#endif
 
     void* reallocate(void* ptr, const std::size_t size)
     {

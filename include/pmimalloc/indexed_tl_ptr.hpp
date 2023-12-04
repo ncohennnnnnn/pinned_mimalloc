@@ -58,7 +58,7 @@ public:
         if (!_instance_idx)
             return nullptr;
         if (_tl.size() < _instance_idx)
-            _tl.resize(_instance_idx);
+            _tl.resize(_instance_idx, nullptr);
         auto& i = _tl[_instance_idx - 1u];
         if (!i)
             i = ptype{_maker(), _deleter};

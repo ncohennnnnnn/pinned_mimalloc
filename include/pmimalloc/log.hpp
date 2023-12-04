@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fmt/core.h>
+
 #include <pmimalloc/config.hpp>
 
 // use the variadic macro LOG to log messages

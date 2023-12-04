@@ -21,19 +21,20 @@
 # endif
 #endif
 
-// void mi_heap_destroy(mi_heap_t* heap);
-// using unique_tls_heap = std::unique_ptr<mi_heap_t, void (*)(mi_heap_t *)>;
-// thread_local mi_heap_t* tl_ext_mimalloc_heap{nullptr};
-thread_local std::unordered_map<mi_arena_id_t, mi_heap_t*> tl_ext_mimalloc_heaps;
-
+// #if USE_TL_VECTOR
+//   : m_heaps{maker, deleter}
+// #endif
 ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_node)
 {
+    // #if USE_TL_VECTOR
+    //     m_heaps = indexed_tl_ptr<mi_heap_t*>{[]() {}, []() {}};
+    // #endif
     if (size != 0)
     {
         /** @brief Create the ext_mimalloc arena
-     * @param exclusive allows allocations if specifically for this arena
-     * @param is_committed set to true
-     * @param is_large could be an option
+     *   @param exclusive allows allocations if specifically for this arena
+     *   @param is_committed set to true
+     *   @param is_large could be an option
      */
 
         /* Do not use OS memory for allocation (but only pre-allocated arena). */
@@ -49,9 +50,15 @@ ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_nod
         }
         else
         {
-            fmt::print("{} : Mimalloc arena created \n", ptr);
+            fmt::print("{} : Mimalloc arena created with id {} \n", ptr, m_arena_id);
         }
     }
+
+#if USE_UNORDERED_MAP
+    fmt::print("Hello from USE_TL_VECTOR \n");
+#elif USE_TL_VECTOR
+    fmt::print("Hello from USE_UNORDERED_MAP \n");
+#endif
 }
 
 template <typename Context>
@@ -62,26 +69,21 @@ ext_mimalloc::ext_mimalloc(const Context& C)
 
 void* ext_mimalloc::allocate(const std::size_t size, const std::size_t alignment)
 {
-    if (!tl_ext_mimalloc_heaps.contains(m_arena_id))
+    if (!heap_exists())
     {
-        // auto my_delete = [](mi_heap_t* heap) {
-        //     fmt::print("ext_mimalloc:: NOT Deleting heap (it's safe) {}\n", (void*) (heap));
-        //     mi_heap_destroy(heap);
-        // };
-        tl_ext_mimalloc_heaps[m_arena_id] = mi_heap_new_in_arena(m_arena_id);
-        //        unique_tls_heap{mi_heap_new_in_arena(m_arena_id), my_delete};
-        fmt::print("ext_mimalloc:: New thread local heap {} ",
-            (void*) (tl_ext_mimalloc_heaps[m_arena_id]));
+        set_heap();
+        fmt::print("ext_mimalloc:: New thread local heap {} with arena id {} \n",
+            (void*) (get_heap()), m_arena_id);
     }
 
     void* rtn = nullptr;
     if (unlikely(alignment))
     {
-        rtn = mi_heap_malloc_aligned(tl_ext_mimalloc_heaps[m_arena_id], size, alignment);
+        rtn = mi_heap_malloc_aligned(get_heap(), size, alignment);
     }
     else
     {
-        rtn = mi_heap_malloc(tl_ext_mimalloc_heaps[m_arena_id], size);
+        rtn = mi_heap_malloc(get_heap(), size);
     }
     //    fmt::print("{} : Memory allocated with size {} from heap {} \n", rtn, size,
     //        (void*) (tl_ext_mimalloc_heaps));
@@ -90,20 +92,16 @@ void* ext_mimalloc::allocate(const std::size_t size, const std::size_t alignment
 
 void* ext_mimalloc::reallocate(void* ptr, std::size_t size)
 {
-    if (!tl_ext_mimalloc_heaps.contains(m_arena_id))
+    if (!heap_exists())
     {
         fmt::print("ERROR!!! how can this happpen (in reallocate) \n");
+        return nullptr;
     }
-    return mi_heap_realloc(tl_ext_mimalloc_heaps[m_arena_id], ptr, size);
+    return mi_heap_realloc(get_heap(), ptr, size);
 }
 
 void ext_mimalloc::deallocate(void* ptr, std::size_t size)
 {
-    // uintptr_t ptr_ = reinterpret_cast<uintptr_t>(ptr);
-    // uintptr_t heap_ = reinterpret_cast<uintptr_t>(mi_heap_get_backing());
-    // ptrdiff_t diff = ptr_ - heap_;
-    // if (diff > 0)
-    //     fmt::print("BIG PROBLEM \n");
     if (likely(ptr))
     {
         if (unlikely(size))
@@ -118,25 +116,84 @@ void ext_mimalloc::deallocate(void* ptr, std::size_t size)
     //    fmt::print("{} : Memory deallocated. \n", ptr);
 }
 
+mi_arena_id_t ext_mimalloc::get_arena()
+{
+    return m_arena_id;
+}
+
 mi_heap_t* ext_mimalloc::get_heap()
 {
-    if (!tl_ext_mimalloc_heaps.contains(m_arena_id))
+#if USE_UNORDERED_MAP
+    if (!heap_exists())
     {
         fmt::print("[error] thread with no heap. \n");
-        return NULL;
+        return nullptr;
     }
     return tl_ext_mimalloc_heaps[m_arena_id];
+#elif USE_TL_VECTOR
+    if (!heap_exists())
+    {
+        fmt::print("[error] thread with no heap. \n");
+        return nullptr;
+    }
+    return m_heaps.get();
+#else
+    fmt::print("[error] no heap threading option selected 1. \n");
+    return nullptr;
+#endif
 }
+
+void ext_mimalloc::set_heap()
+{
+#if USE_UNORDERED_MAP
+    if (heap_exists())
+    {
+        fmt::print("[error] heap already esists. \n");
+        return;
+    }
+    tl_ext_mimalloc_heaps[m_arena_id] = mi_heap_new_in_arena(m_arena_id);
+#elif USE_TL_VECTOR
+    if (heap_exists())
+    {
+        fmt::print("[error] heap already esists. \n");
+        return;
+    }
+    /* TODO: Maybe add a deleter function */
+    m_heaps = indexed_tl_ptr<mi_heap_t>([this]() { return mi_heap_new_in_arena(m_arena_id); },
+        [](mi_heap_t* heap) {
+            mi_heap_destroy(heap);
+            mi_free(heap);
+        });
+#else
+    fmt::print("[error] no heap threading option selected 2. \n");
+#endif
+}
+
+bool ext_mimalloc::heap_exists()
+{
+#if USE_UNORDERED_MAP
+    return tl_ext_mimalloc_heaps.contains(m_arena_id);
+#elif USE_TL_VECTOR
+    return (m_heaps.get() != nullptr);
+#else
+    fmt::print("[error] no heap threading option selected 3. \n");
+    return false;
+#endif
+}
+
+// bool ext_mimalloc::is_in_arena(void* ptr)
+// {
+//     ...
+// }
 
 ext_mimalloc::~ext_mimalloc()
 {
-    if (tl_ext_mimalloc_heaps.contains(m_arena_id))
+    if (heap_exists())
     {
-        if (tl_ext_mimalloc_heaps[m_arena_id]->page_count != 0)
+        if (get_heap()->page_count != 0)
         {
             fmt::print("Heap not empty : calling mi_heap_destroy \n");
-            mi_heap_destroy(tl_ext_mimalloc_heaps[m_arena_id]);
-            // _mi_heap_destroy_pages(tl_ext_mimalloc_heaps[m_arena_id]);
+            mi_heap_destroy(get_heap());
         }
         else
         {

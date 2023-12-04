@@ -23,6 +23,26 @@
 
     - in ext_stdmalloc change std::malloc to a pmr::malloc on the context 
       (+ numa stuff ?)
+
+    - Max arena sizes (s<<32), currently mmap fails if we ask for too much, does it change on daint,
+      does it change if we use module load craype-hugepages1G
+
+    - Max memory pinning - same problem, we can only pin so many pages, can we use huge pages to 
+      improve the problem
+    
+    - Growing Arenas - currently we cannot grow a custom arena, mimallloc handles this internally,
+      why can't we hook into it for our arenas ?
+    
+    - Run test on daint, more threads, more memory, more graphs, huge pages, what do we learn ?
+    
+    - Timing of vector<index> versus map<allocator>, we expect vector to be better. Is it much? 
+      (curiosity) - Benchmarking would need to use N arenas simultaneously to really show the effect.
+    
+    - API for RMA keys, we need to get the key and the memory offset relative to the start of the 
+      pinned region. get_key(ptr) should return { key_type key; std::uint32/64_t offset; }
+    
+    - LRU Cache, registration of user memory "on the fly" would benefit from an LRU memory page 
+      cache. Steal code from MPI if time permits.
 */
 
 // void mi_heap_destroy(mi_heap_t* heap);
@@ -51,7 +71,7 @@ void usual_alloc(Alloc a);
 int main()
 {
     // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
-    std::size_t mem = 1ull << 29;
+    std::size_t mem = 1ull << 35;
     const int nb_threads = 4;
     const int nb_allocs = 100000;
 
@@ -71,8 +91,8 @@ int main()
 
     {
         /* Fill an array through several threads and deallocate all on thread 0*/
-        fill_array_multithread(nb_threads, nb_allocs, a);
-        fill_array_multithread(nb_threads, nb_allocs, b);
+        // fill_array_multithread(nb_threads, nb_allocs, a);
+        // fill_array_multithread(nb_threads, nb_allocs, b);
     }
     // usual_alloc<uint32_t>(a);
 
@@ -104,7 +124,7 @@ int main()
 
 #else
     {
-        heap_per_thread(nb_threads, nb_allocs, mem);
+        // heap_per_thread(nb_threads, nb_allocs, mem);
     }
 #endif
     fmt::print("\n\n");

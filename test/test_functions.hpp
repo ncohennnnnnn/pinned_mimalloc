@@ -176,13 +176,13 @@ bool test_allocator_threaded_multiarena(
         return allocators[arena_index].allocate(sizeof(allocation_type));
     };
     auto set_fn = [](allocation_type* ptr, allocation_type temp) { *ptr = temp; };
-    ok &= fill_array_values(nb_threads, 1, nb_allocs, ptrs, alloc_fn, set_fn);
+    ok &= fill_array_values(nb_threads, nb_arenas, nb_allocs, ptrs, alloc_fn, set_fn);
     //
     auto get_fn = [](allocation_type* ptr) { return *ptr; };
     auto free_fn = [&allocators](int arena_index, allocation_type* ptr) {
         allocators[arena_index].deallocate(ptr);
     };
-    ok &= check_array_values(nb_threads, 1, nb_allocs, ptrs, get_fn, free_fn);
+    ok &= check_array_values(nb_threads, nb_arenas, nb_allocs, ptrs, get_fn, free_fn);
     ptrs.clear();
     allocators.clear();
     return ok;

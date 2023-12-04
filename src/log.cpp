@@ -1,4 +1,4 @@
-#include <iostream>
+// #include <iostream>
 #include <log.hpp>
 #include <mutex>
 #include <sstream>
@@ -20,12 +20,20 @@ std::stringstream& log_stream()
     return str;
 }
 
+/* std::cout version */
+// void print_log_message(std::stringstream& str)
+// {
+//     std::lock_guard<std::mutex> m(log_mutex());
+//     str << "\n";
+//     str >> std::cerr.rdbuf();
+//     std::cerr.flush();
+// }
+
+/* fmt::print version */
 void print_log_message(std::stringstream& str)
 {
     std::lock_guard<std::mutex> m(log_mutex());
-    str << "\n";
-    str >> std::cerr.rdbuf();
-    std::cerr.flush();
+    fmt::print("{}\n", str.str());
 }
 
 void log_message(std::stringstream&) {}

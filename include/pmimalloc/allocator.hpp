@@ -7,8 +7,7 @@
 #include <new>
 #include <vector>
 
-#include "indexed_tl_ptr.hpp"
-#include "resource.hpp"
+#include <pmimalloc/resource.hpp>
 
 template <typename T, typename Resource>
 class pmimallocator
@@ -79,14 +78,13 @@ public:
     ~pmimallocator() {}
 
     /* Allocate */
-    [[nodiscard]] T* allocate(const std::size_t n /*, const std::size_t alignment = 0 */)
+    [[nodiscard]] T* allocate(const std::size_t n)
     {
         if (n > std::numeric_limits<size_type>::max() / sizeof(T))
         {
             throw std::bad_alloc();    // Check for overflow
         }
-        // fmt::print("Resource use count : {} \n", m_sptr_resource.use_count());
-        return static_cast<pointer>(m_sptr_resource->allocate(n * sizeof(T) /*, alignment*/));
+        return static_cast<pointer>(m_sptr_resource->allocate(n * sizeof(T)));
     }
 
     /* Deallocate */

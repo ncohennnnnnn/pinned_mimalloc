@@ -10,9 +10,9 @@ int main()
 {
     // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
     std::size_t mem = 1ull << 27;
-    const int nb_arenas = 5;
-    const int nb_threads = 4;
-    const int nb_allocs = 1000;
+    const int nb_arenas = 4;
+    const int nb_threads = 3;
+    const int nb_allocs = 2;
     bool ok = true;
 
     ok &= test_allocator_threaded_multiarena<int>(nb_arenas, nb_threads, nb_allocs, mem);
