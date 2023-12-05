@@ -21,14 +21,8 @@
 # endif
 #endif
 
-// #if USE_TL_VECTOR
-//   : m_heaps{maker, deleter}
-// #endif
 ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_node)
 {
-    // #if USE_TL_VECTOR
-    //     m_heaps = indexed_tl_ptr<mi_heap_t*>{[]() {}, []() {}};
-    // #endif
     if (size != 0)
     {
         /** @brief Create the ext_mimalloc arena
@@ -55,9 +49,10 @@ ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_nod
     }
 
 #if USE_UNORDERED_MAP
-    fmt::print("Hello from USE_TL_VECTOR \n");
-#elif USE_TL_VECTOR
     fmt::print("Hello from USE_UNORDERED_MAP \n");
+#endif
+#if USE_TL_VECTOR
+    fmt::print("Hello from USE_TL_VECTOR \n");
 #endif
 }
 
@@ -130,14 +125,16 @@ mi_heap_t* ext_mimalloc::get_heap()
         return nullptr;
     }
     return tl_ext_mimalloc_heaps[m_arena_id];
-#elif USE_TL_VECTOR
+#endif
+#if USE_TL_VECTOR
     if (!heap_exists())
     {
         fmt::print("[error] thread with no heap. \n");
         return nullptr;
     }
     return m_heaps.get();
-#else
+#endif
+#if (!USE_UNORDERED_MAP && !USE_TL_VECTOR)
     fmt::print("[error] no heap threading option selected 1. \n");
     return nullptr;
 #endif
@@ -152,19 +149,21 @@ void ext_mimalloc::set_heap()
         return;
     }
     tl_ext_mimalloc_heaps[m_arena_id] = mi_heap_new_in_arena(m_arena_id);
-#elif USE_TL_VECTOR
+#endif
+#if USE_TL_VECTOR
     if (heap_exists())
     {
         fmt::print("[error] heap already esists. \n");
         return;
     }
     /* TODO: Maybe add a deleter function */
-    m_heaps = indexed_tl_ptr<mi_heap_t>([this]() { return mi_heap_new_in_arena(m_arena_id); },
+    m_heaps = indexed_tl_ptr<mi_heap_t>{[this]() { return mi_heap_new_in_arena(m_arena_id); },
         [](mi_heap_t* heap) {
             mi_heap_destroy(heap);
             mi_free(heap);
-        });
-#else
+        }};
+#endif
+#if (!USE_UNORDERED_MAP && !USE_TL_VECTOR)
     fmt::print("[error] no heap threading option selected 2. \n");
 #endif
 }
@@ -173,9 +172,11 @@ bool ext_mimalloc::heap_exists()
 {
 #if USE_UNORDERED_MAP
     return tl_ext_mimalloc_heaps.contains(m_arena_id);
-#elif USE_TL_VECTOR
+#endif
+#if USE_TL_VECTOR
     return (m_heaps.get() != nullptr);
-#else
+#endif
+#if (!USE_UNORDERED_MAP && !USE_TL_VECTOR)
     fmt::print("[error] no heap threading option selected 3. \n");
     return false;
 #endif

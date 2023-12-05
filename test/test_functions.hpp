@@ -133,7 +133,7 @@ bool test_allocator_threaded(const int nb_threads, const int nb_allocs, std::siz
     bool ok = true;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().register_memory().on_host();
+    auto rb = RB.use_mimalloc().pin() /*.register_memory()*/.on_host();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     alloc_t a(rb, mem);
@@ -161,7 +161,7 @@ bool test_allocator_threaded_multiarena(
     bool ok = true;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().register_memory().on_host();
+    auto rb = RB.use_mimalloc().pin() /*.register_memory()*/.on_host();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     std::vector<alloc_t> allocators;
@@ -196,7 +196,7 @@ bool test_mirror_allocator_threaded(const int nb_threads, const int nb_allocs, s
     bool ok = true;
     // Build resource and allocator via resource_builder
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().register_memory().on_mirror();
+    auto rb = RB.use_mimalloc().pin() /*.register_memory()*/.on_mirror();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     alloc_t a(rb, mem);

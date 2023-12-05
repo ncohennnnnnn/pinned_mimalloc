@@ -81,7 +81,7 @@ int main()
 #ifdef USE_ALLOC
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().register_memory().on_host();
+    auto rb = RB.use_mimalloc().pin() /*.register_memory()*/.on_host();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<uint32_t, resource_t>;
     alloc_t a(rb, mem);
