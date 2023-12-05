@@ -52,8 +52,6 @@ include(GNUInstallDirs)
 # Ideally we need to build mimalloc source for debugging
 # ------------------------------------------------------------------------------
 option(PMIMALLOC_WITH_MIMALLOC ON)
-option(USE_TL_VECTOR OFF)
-option(USE_UNORDERED_MAP OFF)
 
 # ------------------------------------------------------------------------------
 # Create config file
@@ -260,9 +258,15 @@ target_link_libraries(
   PRIVATE fmt::fmt-header-only NUMA::libnuma CUDA::cudart HWLOC::libhwloc
   PUBLIC mimalloc pmimalloc_${BACKEND}
 )
-target_compile_definitions(
-  test_pmimalloc PUBLIC PMIMALLOC_WITH_MIMALLOC USE_TL_VECTOR USE_UNORDERED_MAP
-)
+if(ENABLE_LOGGING)
+  target_compile_definitions(
+    test_pmimalloc PUBLIC PMIMALLOC_WITH_MIMALLOC ENABLE_LOGGING
+  )
+else()
+  target_compile_definitions(
+    test_pmimalloc PUBLIC PMIMALLOC_WITH_MIMALLOC ENABLE_LOGGING
+  )
+endif()
 # target_compile_definitions(pmimalloc PRIVATE -DMI_OVERRIDE=OFF )
 
 # ---------------------------------------------------------------------
