@@ -1,5 +1,3 @@
-#include <unordered_map>
-
 #include <pmimalloc/ext_mimalloc.hpp>
 
 #include <fmt/core.h>
@@ -32,10 +30,10 @@ ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_nod
      */
 
         /* Do not use OS memory for allocation (but only pre-allocated arena). */
-        mi_option_set(mi_option_limit_os_alloc, 1);
+        // mi_option_set(mi_option_limit_os_alloc, 1);
 
         /* OS tag to assign to mimalloc'd memory. */
-        mi_option_enable(mi_option_os_tag);
+        // mi_option_enable(mi_option_os_tag);
         bool success =
             mi_manage_os_memory_ex(ptr, size, true, false, true, numa_node, true, &m_arena_id);
         if (!success)
@@ -46,31 +44,21 @@ ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_nod
         {
             fmt::print("{} : Mimalloc arena created with id {} \n", ptr, m_arena_id);
         }
+        m_heaps = indexed_tl_ptr<mi_heap_t>{[this]() { return mi_heap_new_in_arena(m_arena_id); },
+            [](mi_heap_t* heap) {
+                // mi_heap_destroy(heap);
+            }};
     }
-
-#if USE_UNORDERED_MAP
-    fmt::print("Hello from USE_UNORDERED_MAP \n");
-#endif
-#if USE_TL_VECTOR
-    fmt::print("Hello from USE_TL_VECTOR \n");
-#endif
 }
 
-template <typename Context>
-ext_mimalloc::ext_mimalloc(const Context& C)
-{
-    ext_mimalloc{C.get_address(), C.get_size(), C.get_numa_node()};
-}
+// template <typename Context>
+// ext_mimalloc::ext_mimalloc(const Context& C)
+// {
+//     ext_mimalloc{C.get_address(), C.get_size(), C.get_numa_node()};
+// }
 
 void* ext_mimalloc::allocate(const std::size_t size, const std::size_t alignment)
 {
-    if (!heap_exists())
-    {
-        set_heap();
-        fmt::print("ext_mimalloc:: New thread local heap {} with arena id {} \n",
-            (void*) (get_heap()), m_arena_id);
-    }
-
     void* rtn = nullptr;
     if (unlikely(alignment))
     {
@@ -87,11 +75,6 @@ void* ext_mimalloc::allocate(const std::size_t size, const std::size_t alignment
 
 void* ext_mimalloc::reallocate(void* ptr, std::size_t size)
 {
-    if (!heap_exists())
-    {
-        fmt::print("ERROR!!! how can this happpen (in reallocate) \n");
-        return nullptr;
-    }
     return mi_heap_realloc(get_heap(), ptr, size);
 }
 
@@ -118,68 +101,7 @@ mi_arena_id_t ext_mimalloc::get_arena()
 
 mi_heap_t* ext_mimalloc::get_heap()
 {
-#if USE_UNORDERED_MAP
-    if (!heap_exists())
-    {
-        fmt::print("[error] thread with no heap. \n");
-        return nullptr;
-    }
-    return tl_ext_mimalloc_heaps[m_arena_id];
-#endif
-#if USE_TL_VECTOR
-    if (!heap_exists())
-    {
-        fmt::print("[error] thread with no heap. \n");
-        return nullptr;
-    }
     return m_heaps.get();
-#endif
-#if (!USE_UNORDERED_MAP && !USE_TL_VECTOR)
-    fmt::print("[error] no heap threading option selected 1. \n");
-    return nullptr;
-#endif
-}
-
-void ext_mimalloc::set_heap()
-{
-#if USE_UNORDERED_MAP
-    if (heap_exists())
-    {
-        fmt::print("[error] heap already esists. \n");
-        return;
-    }
-    tl_ext_mimalloc_heaps[m_arena_id] = mi_heap_new_in_arena(m_arena_id);
-#endif
-#if USE_TL_VECTOR
-    if (heap_exists())
-    {
-        fmt::print("[error] heap already esists. \n");
-        return;
-    }
-    /* TODO: Maybe add a deleter function */
-    m_heaps = indexed_tl_ptr<mi_heap_t>{[this]() { return mi_heap_new_in_arena(m_arena_id); },
-        [](mi_heap_t* heap) {
-            mi_heap_destroy(heap);
-            mi_free(heap);
-        }};
-#endif
-#if (!USE_UNORDERED_MAP && !USE_TL_VECTOR)
-    fmt::print("[error] no heap threading option selected 2. \n");
-#endif
-}
-
-bool ext_mimalloc::heap_exists()
-{
-#if USE_UNORDERED_MAP
-    return tl_ext_mimalloc_heaps.contains(m_arena_id);
-#endif
-#if USE_TL_VECTOR
-    return (m_heaps.get() != nullptr);
-#endif
-#if (!USE_UNORDERED_MAP && !USE_TL_VECTOR)
-    fmt::print("[error] no heap threading option selected 3. \n");
-    return false;
-#endif
 }
 
 // bool ext_mimalloc::is_in_arena(void* ptr)
@@ -189,17 +111,14 @@ bool ext_mimalloc::heap_exists()
 
 ext_mimalloc::~ext_mimalloc()
 {
-    if (heap_exists())
+    if (get_heap()->page_count != 0)
     {
-        if (get_heap()->page_count != 0)
-        {
-            fmt::print("Heap not empty : calling mi_heap_destroy \n");
-            mi_heap_destroy(get_heap());
-        }
-        else
-        {
-            fmt::print("[error] Heap still alive at end of arena lifetime! \n");
-        }
+        fmt::print("Heap not empty \n");
+        // mi_heap_destroy(get_heap());
+    }
+    else
+    {
+        fmt::print("Heap still alive! \n");
     }
 }
 

@@ -1,6 +1,6 @@
-// #include <iostream>
-#include <log.hpp>
+#include <iostream>
 #include <mutex>
+#include <pmimalloc/log.hpp>
 #include <sstream>
 
 namespace {
@@ -21,19 +21,19 @@ std::stringstream& log_stream()
 }
 
 /* std::cout version */
-// void print_log_message(std::stringstream& str)
-// {
-//     std::lock_guard<std::mutex> m(log_mutex());
-//     str << "\n";
-//     str >> std::cerr.rdbuf();
-//     std::cerr.flush();
-// }
-
-/* fmt::print version */
 void print_log_message(std::stringstream& str)
 {
     std::lock_guard<std::mutex> m(log_mutex());
-    fmt::print("{}\n", str.str());
+    str << "\n";
+    str >> std::cerr.rdbuf();
+    std::cerr.flush();
 }
+
+/* fmt::print version */
+// void print_log_message(std::stringstream& str)
+// {
+//     std::lock_guard<std::mutex> m(log_mutex());
+//     fmt::print("{}\n", str.str());
+// }
 
 void log_message(std::stringstream&) {}

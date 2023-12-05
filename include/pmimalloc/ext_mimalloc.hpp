@@ -10,17 +10,7 @@
 /* TODO: Put this under a debug option */
 #include <mimalloc/internal.h>
 
-#if USE_UNORDERED_MAP
-thread_local std::unordered_map<mi_arena_id_t, mi_heap_t*> tl_ext_mimalloc_heaps;
-#endif
-#if USE_TL_VECTOR
-# include <pmimalloc/indexed_tl_ptr.hpp>
-// auto maker = []() {
-//     // mi_heap_t* heap = nullptr;
-//     // return *heap;
-// };
-// auto deleter = [](/*mi_heap_t* ptr*/) {};
-#endif
+#include <pmimalloc/indexed_tl_ptr.hpp>
 
 class ext_mimalloc
 {
@@ -46,16 +36,10 @@ public:
 
     mi_heap_t* get_heap();
 
-    void set_heap();
-
-    bool heap_exists();
-
     // bool is_in_arena();
 
 private:
     mi_arena_id_t m_arena_id{};
     mi_stats_t m_stats;
-#if USE_TL_VECTOR
     indexed_tl_ptr<mi_heap_t> m_heaps;
-#endif
 };

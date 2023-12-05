@@ -178,10 +178,16 @@ else()
   )
 endif()
 add_library(pmimalloc_${BACKEND} SHARED ${BACKEND_SOURCE})
-target_compile_definitions(
-  pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC USE_TL_VECTOR
-                              USE_UNORDERED_MAP WITH_${BACKEND_U}
-)
+if(ENABLE_LOGGING)
+  target_compile_definitions(
+    pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC ENABLE_LOGGING
+                                WITH_${BACKEND_U}
+  )
+else()
+  target_compile_definitions(
+    pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC WITH_${BACKEND_U}
+  )
+endif()
 set_target_properties(
   pmimalloc_${BACKEND} PROPERTIES PUBLIC_HEADER include/allocator.h
 )
