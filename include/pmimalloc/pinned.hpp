@@ -11,27 +11,29 @@ class pinned : public Memory
 public:
     pinned()
       : Memory{}
-      , m_pinned{false}
     {
     }
 
     pinned(Memory&& mem)
       : Memory{std::move(mem)}
-      , m_pinned{false}
     {
         _pin_or_unpin(Memory::m_address, Memory::m_size, true);
     }
 
     pinned(const std::size_t size, const std::size_t alignment = 0)
       : Memory{size, alignment}
-      , m_pinned{false}
     {
         _pin_or_unpin(Memory::m_address, Memory::m_size, true);
     }
 
     pinned(void* ptr, const std::size_t size)
       : Memory{ptr, size}
-      , m_pinned{false}
+    {
+        _pin_or_unpin(Memory::m_address, Memory::m_size, true);
+    }
+
+    pinned(void* ptr_a, void* ptr_b, const std::size_t size)
+      : Memory{ptr_a, ptr_b, size}
     {
         _pin_or_unpin(Memory::m_address, Memory::m_size, true);
     }
@@ -94,6 +96,5 @@ private:
         return (bool) (1 - success);
     }
 
-protected:
-    bool m_pinned;
+    bool m_pinned = false;
 };

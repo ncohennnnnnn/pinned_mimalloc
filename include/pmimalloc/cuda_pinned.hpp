@@ -80,6 +80,5 @@ private:
         }
     }
 
-protected:
     bool m_pinned;
 };

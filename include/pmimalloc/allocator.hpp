@@ -37,10 +37,10 @@ public:
         using other = pmimallocator<U, Resource>;
     };
 
-    /* Contructors */
     pmimallocator() noexcept = default;
     pmimallocator(const pmimallocator& other) noexcept = default;
     pmimallocator(pmimallocator&&) noexcept = default;
+
     /* Construct from a shared_ptr */
     pmimallocator(shared_resource r) noexcept
       : m_sptr_resource{r}
@@ -49,7 +49,7 @@ public:
 
     /* Construct from a resource_builder */
     template <typename... Args>
-    pmimallocator(resource_builder<resource_type /*, Args*/> rb, Args... a) noexcept
+    pmimallocator(resource_builder<resource_type> rb, Args... a) noexcept
       : m_sptr_resource{rb.sbuild(std::move(a)...)}
     {
     }
@@ -82,7 +82,8 @@ public:
     {
         if (n > std::numeric_limits<size_type>::max() / sizeof(T))
         {
-            throw std::bad_alloc();    // Check for overflow
+            /* Check for overflow */
+            throw std::bad_alloc();
         }
         return static_cast<pointer>(m_sptr_resource->allocate(n * sizeof(T)));
     }
@@ -102,29 +103,6 @@ public:
         return std::numeric_limits<size_type>::max() / sizeof(T);
     }
 
-    // /* Usable size (only with mimalloc) */
-    // #if PMIMALLOC_WITH_MIMALLOC
-    //     std::size_t get_usable_size() { return m_sptr_resource->get_usable_size(); }
-    // #endif
-
-    /* Construct */
-
-    // void construct( pointer p, const_reference val );
-
-    // template <class U, class... Args>
-    // void construct(U* p, Args&&... args) {
-    //     ::new (static_cast<void*>(p)) U(std::forward<Args>(args)...);
-    // }
-
-    /* Destroy */
-
-    // void destroy( pointer p );
-
-    // template <class U>
-    // void destroy(U* p) {
-    //     p->~U();
-    // }
-
     friend bool operator==(const pmimallocator& lhs, const pmimallocator& rhs)
     {
         return (lhs.m_sptr_resource == rhs.m_sptr_resource);
@@ -143,6 +121,24 @@ private:
 };
 
 // TODO (optional) : All of this
+
+/* Construct */
+
+// void construct( pointer p, const_reference val );
+
+// template <class U, class... Args>
+// void construct(U* p, Args&&... args) {
+//     ::new (static_cast<void*>(p)) U(std::forward<Args>(args)...);
+// }
+
+/* Destroy */
+
+// void destroy( pointer p );
+
+// template <class U>
+// void destroy(U* p) {
+//     p->~U();
+// }
 
 /* Address */
 

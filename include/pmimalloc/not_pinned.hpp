@@ -23,10 +23,15 @@ public:
     {
     }
 
+    not_pinned(void* ptr_a, void* ptr_b, const std::size_t size)
+      : Memory{ptr_a, ptr_b, size}
+    {
+    }
+
     not_pinned(not_pinned&&) noexcept = default;
 
     ~not_pinned() {}
 
-protected:
+private:
     bool m_pinned = false;
 };

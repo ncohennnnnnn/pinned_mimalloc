@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cuda_runtime.h>
 
 template <typename Mirrored_Resource>
@@ -14,6 +16,16 @@ public:
 
     mirrored(const std::size_t size, const std::size_t alignment = 0)
       : resource_t{size, alignment}
+    {
+    }
+
+    mirrored(void* ptr, const std::size_t size)
+      : resource_t{ptr, size}
+    {
+    }
+
+    mirrored(void* ptr_a, void* ptr_b, const std::size_t size)
+      : resource_t{ptr_a, ptr_b, size}
     {
     }
 

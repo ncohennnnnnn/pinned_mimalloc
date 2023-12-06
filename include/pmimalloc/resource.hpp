@@ -23,9 +23,10 @@
 #include <pmimalloc/base.hpp>
 #include <pmimalloc/cuda_pinned.hpp>
 #include <pmimalloc/ext_stdmalloc.hpp>
+#include <pmimalloc/host_device_memory.hpp>
 #include <pmimalloc/host_memory.hpp>
-#include <pmimalloc/mirror_memory.hpp>
 #include <pmimalloc/mirrored.hpp>
+#include <pmimalloc/mirrored_user_memory.hpp>
 #include <pmimalloc/not_pinned.hpp>
 #include <pmimalloc/pinned.hpp>
 #include <pmimalloc/simple.hpp>
@@ -57,6 +58,14 @@ public:
 
     resource(const this_type& r) noexcept = delete;
 
+    /* Should I do this instead of the next three ones ?*/
+    // template<typename... Args>
+    // resource(Args... args)
+    //   : context_t{args...}
+    //   , m_malloc{context_t::m_address, context_t::m_size, context_t::m_numa_node}
+    // {
+    // }
+
     resource(const std::size_t size, const std::size_t alignment = 0)
       : context_t{size, alignment}
       , m_malloc{context_t::m_address, context_t::m_size, context_t::m_numa_node}
@@ -65,7 +74,13 @@ public:
 
     resource(void* ptr, const std::size_t size)
       : context_t{ptr, size}
-      , m_malloc{ptr, size, context_t::m_numa_node}
+      , m_malloc{context_t::m_address, context_t::m_size, context_t::m_numa_node}
+    {
+    }
+
+    resource(void* ptr_a, void* ptr_b, const std::size_t size)
+      : context_t{ptr_a, ptr_b, size}
+      , m_malloc{context_t::m_address, context_t::m_size, context_t::m_numa_node}
     {
     }
 
@@ -176,18 +191,14 @@ struct resource_builder
     constexpr resource_builder(const resource_builder&) = default;
     constexpr resource_builder(resource_builder&&) = default;
 
-    constexpr auto is_simple(void) const
-    {
-        // mirrored resources stored at position 0 in the resource nest
-        return updated<0, simple>();
-    }
-
-    constexpr auto is_mirrored(void) const
+private:
+    constexpr auto mirrored_allocations(void) const
     {
         // mirrored resources stored at position 0 in the resource nest
         return updated<0, mirrored>();
     }
 
+public:
 #if PMIMALLOC_WITH_MIMALLOC
     constexpr auto use_mimalloc(void) const
     {
@@ -210,11 +221,11 @@ struct resource_builder
     }
 #endif
 
-    constexpr auto no_register_memory(void) const
-    {
-        // registered resources are stored at position 2 in the resource nest
-        return updated<2, context, backend_none>();
-    }
+    // constexpr auto no_register_memory(void) const
+    // {
+    //     // registered resources are stored at position 2 in the resource nest
+    //     return updated<2, context, backend_none>();
+    // }
 
     constexpr auto pin(void) const
     {
@@ -223,49 +234,49 @@ struct resource_builder
     }
 
 #if WITH_CUDA
-    constexpr auto pin_cuda(void) const
+    constexpr auto cuda_pin(void) const
     {
         // pinned resources are stored at position 3 in the resource nest
         return updated<3, cuda_pinned>();
     }
 #endif
 
-    constexpr auto no_pin(void) const
-    {
-        // pinned resources are stored at position 3 in the resource nest
-        return updated<3, not_pinned>();
-    }
-
-    // constexpr auto on_device(const std::size_t size, const int alignment = 0) const
+    // constexpr auto no_pin(void) const
     // {
-    //     // memory resources are stored at position 4 in the resource nest
-    //     return updated<4, device_memory>(std::make_tuple(size, alignment));
+    //     // pinned resources are stored at position 3 in the resource nest
+    //     return updated<3, not_pinned>();
     // }
 
-    constexpr auto on_host() const
+    constexpr auto on_host(void) const
     {
         // memory resources are stored at position 4 in the resource nest
         return updated<4, host_memory>();
     }
 
-    constexpr auto on_mirror() const
+    constexpr auto on_host_and_device(void) const
     {
         // memory resources are stored at position 4 in the resource nest
-        auto tmp = is_mirrored();
-        return tmp.template updated<4, mirror_memory>();
+        auto tmp = mirrored_allocations();
+        return tmp.template updated<4, host_device_memory>();
     }
 
-    constexpr auto use_host_memory() const
+    constexpr auto mirror_user_memory(void) const
+    {
+        // memory resources are stored at position 4 in the resource nest
+        auto tmp = mirrored_allocations();
+        return tmp.template updated<4, mirrored_user_memory>();
+    }
+
+    constexpr auto use_host_memory(void) const
     {
         // memory resources are stored at position 4 in the resource nest
         return updated<4, user_host_memory>();
     }
 
-    // constexpr auto use_device_memory(void* ptr, const std::size_t size) const
-    // {
-    //     // memory resources are stored at position 4 in the resource nest
-    //     return updated<4, user_device_memory>(std::make_tuple(ptr, size));
-    // }
+    constexpr resource_builder<> clear(void) const
+    {
+        return {};
+    }
 
     template <typename... Args>
     constexpr resource_shared_t sbuild(Args... a) const
@@ -279,12 +290,12 @@ struct resource_builder
         return resource_t(std::move(a)...);
     }
 
-    template <std::size_t I, template <typename...> typename R, typename... M, typename... Arg>
-    constexpr auto updated(Arg... arg) const
+    template <std::size_t I, template <typename...> typename R, typename... M /*, typename... Arg*/>
+    constexpr auto updated(/*Arg... arg*/) const
     {
         // create a new nested resource type by replacing the old resource class template
         using R_new = replace_resource_t<I, resource_t, R, M...>;
         // return new resource_builder class template instantiation
-        return resource_builder<R_new, Arg...>{std::move(arg)...};
+        return resource_builder<R_new /*, Arg...*/>{/*std::move(arg)...*/};
     }
 };

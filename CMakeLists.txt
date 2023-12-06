@@ -51,7 +51,10 @@ include(GNUInstallDirs)
 # ------------------------------------------------------------------------------
 # Ideally we need to build mimalloc source for debugging
 # ------------------------------------------------------------------------------
-option(PMIMALLOC_WITH_MIMALLOC ON)
+set(PMIMALLOC_WITH_MIMALLOC
+    ON
+    CACHE BOOL "compile pmimalloc with mimalloc library"
+)
 
 # ------------------------------------------------------------------------------
 # Create config file

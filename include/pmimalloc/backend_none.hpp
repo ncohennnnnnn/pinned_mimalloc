@@ -1,7 +1,7 @@
 class backend_none
 {
 public:
-    using key_t = uint8_t;
+    using rkey_t = uint8_t;
 
     backend_none() {}
 
@@ -43,12 +43,12 @@ public:
         return nullptr;
     }
 
-    static inline key_t get_remote_key()
+    static inline rkey_t get_remote_key()
     {
         return 0;
     }
 
-    static inline key_t get_remote_key(void* /*ptr*/)
+    static inline rkey_t get_remote_key(void* /*ptr*/)
     {
         return 0;
     }

@@ -4,18 +4,11 @@ int backend::deregister(void)
 {
     if (m_region /*&& !get_user_region()*/)
     {
-        // DEBUG(NS_MEMORY::mrn_deb, trace(NS_DEBUG::str<>("release"), m_region));
-        //
         if (fi_close(&m_region->fid))
         {
-            // DEBUG(NS_MEMORY::mrn_deb, error("fi_close mr failed"));
             fmt::print("fi_close mr failed");
             return -1;
         }
-        // else
-        // {
-        //     DEBUG(NS_MEMORY::mrn_deb, trace(NS_DEBUG::str<>("de-Registered region"), *this));
-        // }
         m_region = nullptr;
     }
     return 0;

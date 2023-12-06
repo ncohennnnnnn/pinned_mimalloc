@@ -10,14 +10,14 @@
 
 /* TODO:
     - Fix segfault
-    - how to extend the arena size ?
+    - how to extend the arena size ? Currently we cannot grow a custom arena, mimallloc handles this
+      internally, why can't we hook into it for our arenas 
 
     - make the mirroring more flexible (host/host, higher number of memory chunks 
       entangled) and make it modular
 
     - numa node stuff, steal it from Fabian and get how to use it
 
-    - RMA keys functions, the ones for individual objects (with offset)
     - UCX
     - MPI
 
@@ -30,17 +30,8 @@
     - Max memory pinning - same problem, we can only pin so many pages, can we use huge pages to 
       improve the problem
     
-    - Growing Arenas - currently we cannot grow a custom arena, mimallloc handles this internally,
-      why can't we hook into it for our arenas ?
-    
     - Run test on daint, more threads, more memory, more graphs, huge pages, what do we learn ?
-    
-    - Timing of vector<index> versus map<allocator>, we expect vector to be better. Is it much? 
-      (curiosity) - Benchmarking would need to use N arenas simultaneously to really show the effect.
-    
-    - API for RMA keys, we need to get the key and the memory offset relative to the start of the 
-      pinned region. get_key(ptr) should return { key_type key; std::uint32/64_t offset; }
-    
+            
     - LRU Cache, registration of user memory "on the fly" would benefit from an LRU memory page 
       cache. Steal code from MPI if time permits.
 */

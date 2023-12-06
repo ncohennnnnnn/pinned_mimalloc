@@ -1,5 +1,12 @@
-set(TEST_SRCS test_heap_per_thread test_heap_per_thread_N test_allocator
-              test_allocator_N test_mirror test_multi_arena
+set(TEST_SRCS
+    test_host
+    test_host_threads
+    test_host_arenas
+    test_host_arenas_threads
+    test_mirror
+    test_mirror_threads
+    test_mirror_arenas
+    test_mirror_arenas_threads
 )
 
 # ------------------------------------------------------------------------------
