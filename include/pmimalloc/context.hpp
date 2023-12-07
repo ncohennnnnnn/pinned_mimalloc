@@ -1,19 +1,13 @@
 #include <cstdlib>
 #include <utility>
 //
+#include <fmt/core.h>
+//
 #include <pmimalloc/concepts.hpp>
 
-// class backend {
-// public:
-//     int deregister(void);
+class backend_none;
 
-//     static inline int register_memory(void* ptr, std::size_t base_size);
-
-//     template<typename T>
-//     static inline int register_ptr(T* ptr, void* base_ptr, std::size_t base_size);
-// };
-
-template <typename Memory, typename Backend>
+template <typename Memory, typename Backend = backend_none>
 /** @brief Manages and brings together the choice of the registration (Backend)
  * and pinning mechanism (Memory), and memory type to use (Memory).
  *
@@ -92,4 +86,64 @@ public:
 protected:
     backend_t m_backend;
     rkey_t m_rkey;
+};
+
+/*------------------------------------------------------------------*/
+/*                        Default backend                           */
+/*------------------------------------------------------------------*/
+
+class backend_none
+{
+public:
+    using rkey_t = uint8_t;
+
+    backend_none() {}
+
+    backend_none(backend_none&& /*other*/) noexcept {}
+
+    backend_none(void* /*ptr*/, const std::size_t /*size*/) {}
+
+    backend_none& operator=(backend_none&& /*other*/) noexcept
+    {
+        return *this;
+    }
+
+    ~backend_none() {}
+
+    int deregister(void) const
+    {
+        return 0;
+    }
+
+    template <typename... Args>
+    static inline int register_memory(Args&&... args)
+    {
+        return 0;
+    }
+
+    static inline int register_memory(void* /*ptr*/, std::size_t /*base_size*/)
+    {
+        return 0;
+    }
+
+    template <typename T>
+    static inline int register_ptr(T* ptr, void* base_ptr, std::size_t base_size)
+    {
+        return 0;
+    }
+
+    static inline void* get_local_key()
+    {
+        return nullptr;
+    }
+
+    static inline rkey_t get_remote_key()
+    {
+        return 0;
+    }
+
+    static inline rkey_t get_remote_key(void* /*ptr*/)
+    {
+        return 0;
+    }
 };

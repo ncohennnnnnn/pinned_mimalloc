@@ -46,16 +46,11 @@ ext_mimalloc::ext_mimalloc(void* ptr, const std::size_t size, const int numa_nod
         }
         m_heaps = indexed_tl_ptr<mi_heap_t>{[this]() { return mi_heap_new_in_arena(m_arena_id); },
             [](mi_heap_t* heap) {
-                // mi_heap_destroy(heap);
+                if (heap->page_count != 0)
+                    fmt::print("Heap not empty \n");
             }};
     }
 }
-
-// template <typename Context>
-// ext_mimalloc::ext_mimalloc(const Context& C)
-// {
-//     ext_mimalloc{C.get_address(), C.get_size(), C.get_numa_node()};
-// }
 
 void* ext_mimalloc::allocate(const std::size_t size, const std::size_t alignment)
 {
@@ -103,33 +98,3 @@ mi_heap_t* ext_mimalloc::get_heap()
 {
     return m_heaps.get();
 }
-
-// bool ext_mimalloc::is_in_arena(void* ptr)
-// {
-//     ...
-// }
-
-ext_mimalloc::~ext_mimalloc()
-{
-    if (get_heap()->page_count != 0)
-    {
-        fmt::print("Heap not empty \n");
-        // mi_heap_destroy(get_heap());
-    }
-    else
-    {
-        fmt::print("Heap still alive! \n");
-    }
-}
-
-// template<typename T>
-// std::size_t ext_mimalloc::get_usable_size(T* ptr) {
-//     if (!tl_ext_mimalloc_heaps)
-//     {
-//         fmt::print("[warning] First time seeing this heap, cannot get its usable size. \n");
-//         return 0;
-//     } else
-//     {
-//          return mi_usable_size((void*) (ptr));
-//     }
-// }

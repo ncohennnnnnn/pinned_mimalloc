@@ -7,7 +7,7 @@
 #include <new>
 #include <vector>
 
-#include <pmimalloc/resource.hpp>
+#include <pmimalloc/builders.hpp>
 
 template <typename T, typename Resource>
 class pmimallocator

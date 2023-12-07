@@ -6,15 +6,6 @@
 #include <pmimalloc/allocator.hpp>
 
 /* ---------------------------------------------------------------------------- */
-/* Filling a vector with resource_builders to build allocators */
-// std::vector<std::any> rb_vector()
-// {
-//     resource_builder RB;
-//     std::vector<std::any> rb;
-//     rb.pushback(RB.clear().use_mimalloc().pin().on_host())
-// }
-
-/* ---------------------------------------------------------------------------- */
 template <typename T, typename AllocFunction, typename SetFunction>
 bool fill_array_values(const int nb_arenas, const int nb_threads, const int nb_allocs,
     std::vector<T*>& ptrs, AllocFunction&& alloc_fn, SetFunction&& set_fn)
@@ -242,7 +233,7 @@ bool test_mirror_allocator(
 //         host_memory<base> hm(mem);
 //         ok[i] = test_mirror_allocator_rb<allocation_type>(
 //             RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
-//         ++i;
+//         ++i;sbatch_file_alloc-test-new_jemalloc
 //     }
 //     {
 //         host_memory<base> hm(mem);

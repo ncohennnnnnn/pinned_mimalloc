@@ -15,7 +15,7 @@
 class ext_mimalloc
 {
 public:
-    ext_mimalloc() {}
+    ext_mimalloc() = default;
 
     ext_mimalloc(void* ptr, const std::size_t size, const int numa_node);
 
@@ -24,7 +24,7 @@ public:
 
     ext_mimalloc(const ext_mimalloc& m) = delete;
 
-    ~ext_mimalloc();
+    ~ext_mimalloc() = default;
 
     void* allocate(const std::size_t size, const std::size_t alignment = 0);
 
