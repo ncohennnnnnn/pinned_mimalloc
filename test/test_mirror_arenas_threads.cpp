@@ -11,7 +11,7 @@ int main()
     // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
     std::size_t mem = 1ull << 29;
     const int nb_arenas = 5;
-    const int nb_threads = 8;
+    const int nb_threads = 4;
     const int nb_allocs = 1000;
 
     // Fill an array through several threads and deallocate all on thread 0

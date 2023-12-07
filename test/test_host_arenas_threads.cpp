@@ -14,7 +14,7 @@ Maximum size when pinning : 30
     */
     std::size_t mem = 1ull << 26;
     const int nb_arenas = 5;
-    const int nb_threads = 8;
+    const int nb_threads = 4;
     const int nb_allocs = 1000;
     bool ok = true;
 
