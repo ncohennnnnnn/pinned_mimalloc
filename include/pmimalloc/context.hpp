@@ -24,11 +24,15 @@ public:
     {
         rkey_t remote_key;
         std::uint32_t offset;
-        // std::uint64_t offset;
         std::uint32_t get()
         {
             return (reinterpret_cast<std::uint32_t>(remote_key) + offset);
         }
+        // std::uint64_t offset;
+        // std::uint64_t get()
+        // {
+        //     return (reinterpret_cast<std::uint64_t>(remote_key) + offset);
+        // }
     };
 
     context()
@@ -81,6 +85,11 @@ public:
             return NULL;
         }
         return {m_rkey, reinterpret_cast<uint32_t>(diff)};
+    }
+
+    rkey_t get_key()
+    {
+        return m_rkey;
     }
 
 protected:

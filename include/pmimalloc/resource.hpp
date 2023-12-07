@@ -3,10 +3,6 @@
 #include <memory>
 #include <tuple>
 
-/*------------------------------------------------------------------*/
-/*                            Resource                              */
-/*------------------------------------------------------------------*/
-
 template <typename Context, typename Malloc>
 class resource : public Context
 {
@@ -15,6 +11,7 @@ public:
     using shared_this = std::shared_ptr<resource<Context, Malloc>>;
     using malloc_t = Malloc;
     using context_t = Context;
+    using key_t = context_t::key_t;
 
     resource() noexcept
       : m_malloc{}
@@ -55,17 +52,10 @@ public:
     {
     }
 
-#if (defined(WITH_MIMALLOC) && defined(USE_TL_VECTOR))
-    void* allocate(const std::size_t size, const std::size_t idx, const std::size_t alignment = 0)
-    {
-        return m_malloc.allocate(size, idx, alignment);
-    }
-#else
     void* allocate(const std::size_t size, const std::size_t alignment = 0)
     {
         return m_malloc.allocate(size, alignment);
     }
-#endif
 
     void* reallocate(void* ptr, const std::size_t size)
     {
@@ -77,14 +67,12 @@ public:
         return m_malloc.deallocate(ptr, size);
     }
 
+    template <typename T>
+    key_t get_key(T* ptr)
+    {
+        return this->template get_key(ptr);
+    }
+
 protected:
     malloc_t m_malloc;
-};
-
-/*------------------------------------------------------------------*/
-/*                          No allocator                            */
-/*------------------------------------------------------------------*/
-
-class ext_none
-{
 };

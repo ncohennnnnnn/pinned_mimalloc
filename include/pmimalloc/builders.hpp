@@ -5,6 +5,7 @@
 #include <pmimalloc/cuda_pinned.hpp>
 #include <pmimalloc/ext_stdmalloc.hpp>
 #include <pmimalloc/handled_memory.hpp>
+#include <pmimalloc/handler.hpp>
 #include <pmimalloc/host_device_memory.hpp>
 #include <pmimalloc/host_memory.hpp>
 #include <pmimalloc/mirrored.hpp>
@@ -38,11 +39,11 @@
  ------------------------------------------------------------------------
 */
 
-/*------------------------------------------------------------------*/
-/*                   Nested resource technology                     */
-/*------------------------------------------------------------------*/
-
 /*
+------------------------------------------------------------------
+                   Nested resource technology                     
+------------------------------------------------------------------
+
 Replace a resource class template at postion I in a nested resource type.
     Example:
         res_orig = res0<res1<res2<res3<...>, ...>, ...>, ...>
@@ -78,12 +79,12 @@ struct replace_resource<0, Nested<Inner, More...>, R, M...>
 template <std::size_t I, typename Nested, template <typename...> typename R, typename... M>
 using replace_resource_t = typename replace_resource<I, Nested, R, M...>::type;
 
-/*------------------------------------------------------------------*/
-/*                       Resource builder                           */
-/*------------------------------------------------------------------*/
-
 /*
- Default resource for builder :
+------------------------------------------------------------------
+                       Resource builder                           
+------------------------------------------------------------------
+
+ Default resource :
      0         1           2           3              4          5
   simple -- Resource -- Context -- not_pinned -- host_memory -- base
                      \           \
@@ -208,70 +209,69 @@ public:
     }
 };
 
-/*------------------------------------------------------------------*/
-/*                             Handler                              */
-/*------------------------------------------------------------------*/
-
 /*
- Default resource for handler :
+------------------------------------------------------------------
+                             Handler                              
+------------------------------------------------------------------
+
+ Default handler :
      0          1          2           3              4             5
   simple -- resource -- context -- not_pinned -- handled_memory -- base
-                     \         \
-                  ext_none   backend_none
+                            \
+                          backend_none
 */
 
-using default_resource_for_handler =
-    simple<resource<context<not_pinned<handled_memory<base>>, backend_none>, ext_none>>;
+using default_handler = handler<context<not_pinned<handled_memory<base>>, backend_none>>;
 
-template <typename Resource = default_resource_for_handler>
-struct handler
+template <typename Handler = default_handler>
+struct handler_builder
 {
-    using resource_t = Resource;
+    using handler_t = Handler;
 
-    constexpr handler() {}
+    constexpr handler_builder() {}
 
-    constexpr handler(const handler&) = default;
-    constexpr handler(handler&&) = default;
+    constexpr handler_builder(const handler_builder&) = default;
+    constexpr handler_builder(handler_builder&&) = default;
 
 #if WITH_MPI || WITH_LIBFABRIC || WITH_UCX
     constexpr auto register_memory(void) const
     {
-        // registered resources are stored at position 2 in the resource nest
-        return updated<2, context, backend>();
+        // registered handlers are stored at position 1 in the handler nest
+        return updated<1, context, backend>();
     }
 #endif
 
     constexpr auto pin(void) const
     {
-        // pinned resources are stored at position 3 in the resource nest
-        return updated<3, pinned>();
+        // pinned handlers are stored at position 2 in the handler nest
+        return updated<2, pinned>();
     }
 
 #if WITH_CUDA
     constexpr auto cuda_pin(void) const
     {
-        // pinned resources are stored at position 3 in the resource nest
-        return updated<3, cuda_pinned>();
+        // pinned handlers are stored at position 2 in the handler nest
+        return updated<2, cuda_pinned>();
     }
 #endif
 
-    constexpr handler<> clear(void) const
+    constexpr handler_builder<> clear(void) const
     {
         return {};
     }
 
     template <typename... Args>
-    constexpr resource_t build(Args... args) const
+    constexpr handler_t build(Args... args) const
     {
-        return resource_t(std::move(args)...);
+        return handler_t(std::move(args)...);
     }
 
     template <std::size_t I, template <typename...> typename R, typename... M>
     constexpr auto updated() const
     {
         // create a new nested resource type by replacing the old resource class template
-        using R_new = replace_resource_t<I, resource_t, R, M...>;
+        using R_new = replace_resource_t<I, handler_t, R, M...>;
         // return new nested_resource class template instantiation
-        return handler<R_new>{};
+        return handler_builder<R_new>{};
     }
 };
