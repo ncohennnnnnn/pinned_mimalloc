@@ -93,7 +93,7 @@ bool test_host_allocator(
     bool ok = true;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin() /*.register_memory()*/.on_host();
+    auto rb = RB.use_mimalloc().pin().on_host();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     std::vector<alloc_t> allocators;
@@ -129,7 +129,7 @@ bool test_mirror_allocator(
     bool ok = true;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin() /*.register_memory()*/.on_host_and_device();
+    auto rb = RB.use_mimalloc().pin().on_host_and_device();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     alloc_t a(rb, mem);

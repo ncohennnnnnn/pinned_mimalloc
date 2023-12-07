@@ -9,7 +9,7 @@
 int main()
 {
     // minimum arena 25, maximum arena when pinning 30, maximum mmap 35
-    std::size_t mem = 1ull << 29;
+    std::size_t mem = 1ull << 27;
     const int nb_arenas = 1;
     const int nb_threads = 1;
     const int nb_allocs = 1000;

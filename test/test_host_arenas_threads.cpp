@@ -12,7 +12,7 @@ int main()
 Maximum size for mem : 35 (max of mmap on my machine)
 Maximum size when pinning : 30
     */
-    std::size_t mem = 1ull << 26;
+    std::size_t mem = 1ull << 27;
     const int nb_arenas = 5;
     const int nb_threads = 4;
     const int nb_allocs = 1000;
