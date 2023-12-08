@@ -2,8 +2,6 @@
 
 #include <fmt/core.h>
 
-#include <pmimalloc/config.hpp>
-
 // use the variadic macro LOG to log messages
 // the arguments will be divided by a whitespace
 #ifdef ENABLE_LOGGING

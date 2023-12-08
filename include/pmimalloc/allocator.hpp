@@ -9,6 +9,30 @@
 
 #include <pmimalloc/builders.hpp>
 
+/* TODO:
+    - Fix segfault
+    - how to extend the arena size ? Currently we cannot grow a custom arena, mimallloc handles this
+      internally, why can't we hook into it for our arenas 
+
+    - numa node stuff, steal it from Fabian and get how to use it
+
+    - UCX
+    - MPI
+
+    - in ext_stdmalloc change std::malloc to a pmr::malloc on the context 
+      (+ numa stuff ?)
+
+    - Max arena sizes (s<<32), currently mmap fails if we ask for too much, does it change on daint,
+      does it change if we use module load craype-hugepages1G
+      Same problem for mlock, we can only pin so many pages, can we use huge pages to improve
+      the problem ?
+    
+    - Run test on daint, more threads, more memory, more graphs, huge pages, what do we learn ?
+            
+    - LRU Cache, registration of user memory "on the fly" would benefit from an LRU memory page 
+      cache. Steal code from MPI if time permits.
+*/
+
 template <typename T, typename Resource>
 class pmimallocator
 {

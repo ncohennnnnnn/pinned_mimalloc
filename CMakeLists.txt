@@ -59,10 +59,8 @@ set(PMIMALLOC_WITH_MIMALLOC
 # ------------------------------------------------------------------------------
 # Create config file
 # ------------------------------------------------------------------------------
-configure_file(
-  ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in
-  ${PROJECT_SOURCE_DIR}/include/config.hpp
-)
+# configure_file( ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in
+# ${PROJECT_SOURCE_DIR}/include/config.hpp @ONLY )
 
 # ------------------------------------------------------------------------------
 # Cmake module path for find_package
@@ -121,18 +119,6 @@ set(ENABLE_LOGGING
     OFF
     CACHE BOOL "print logging info to cerr"
 )
-
-# ---------------------------------------------------------------------
-# Generate config file
-# ---------------------------------------------------------------------
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.hpp.in
-  ${CMAKE_CURRENT_BINARY_DIR}/include/config.hpp @ONLY
-)
-
-# ---------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------
 if(ENABLE_LOGGING)
   set(PMI_LOG_SRC src/log.cpp)
 endif()
@@ -172,11 +158,9 @@ string(TOUPPER ${BACKEND} BACKEND_U)
 # set(BACKEND_ ${BACKEND_U} CACHE INTERNAL "" FORCE) set(PMIMALLOC_DEVICE
 # "PMIMALLOC_DEVICE_${BACKEND_}" CACHE INTERNAL "" FORCE)
 if(${BACKEND} STREQUAL "none")
-  set(BACKEND_SOURCE src/ext_mimalloc.cpp src/numa.cpp ${PMI_LOG_SRC})
+  set(BACKEND_SOURCE src/numa.cpp ${PMI_LOG_SRC})
 else()
-  set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/ext_mimalloc.cpp
-                     src/numa.cpp ${PMI_LOG_SRC}
-  )
+  set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/numa.cpp ${PMI_LOG_SRC})
 endif()
 add_library(pmimalloc_${BACKEND} SHARED ${BACKEND_SOURCE})
 if(ENABLE_LOGGING)
@@ -250,27 +234,6 @@ elseif(${BACKEND} STREQUAL "none")
 endif()
 
 add_library(pmimalloc ALIAS pmimalloc_${BACKEND})
-
-# ------------------------------------------------------------------------------
-# Building executable target
-# ------------------------------------------------------------------------------
-add_executable(test_pmimalloc src/test.cpp)
-target_include_directories(test_pmimalloc PUBLIC include)
-target_link_libraries(
-  test_pmimalloc
-  PRIVATE fmt::fmt-header-only NUMA::libnuma CUDA::cudart HWLOC::libhwloc
-  PUBLIC mimalloc pmimalloc_${BACKEND}
-)
-if(ENABLE_LOGGING)
-  target_compile_definitions(
-    test_pmimalloc PUBLIC PMIMALLOC_WITH_MIMALLOC ENABLE_LOGGING
-  )
-else()
-  target_compile_definitions(
-    test_pmimalloc PUBLIC PMIMALLOC_WITH_MIMALLOC ENABLE_LOGGING
-  )
-endif()
-# target_compile_definitions(pmimalloc PRIVATE -DMI_OVERRIDE=OFF )
 
 # ---------------------------------------------------------------------
 # NUMA setup
