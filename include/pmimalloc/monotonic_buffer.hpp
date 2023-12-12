@@ -1,45 +1,16 @@
 #pragma once
 
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <errno.h>
-#include <iostream>
-#include <stdexcept>
-#include <sys/mman.h>
-#include <unistd.h>
-//
-#include <fmt/core.h>
-//
-#include <pmimalloc/numa.hpp>
+#include <memory>
+#include <memory_resource>
+#include <tuple>
 
-#if PMIMALLOC_WITH_MIMALLOC
-# ifndef MIMALLOC_SEGMENT_ALIGNED_SIZE
-#  define MIMALLOC_SEGMENT_ALIGNED_SIZE ((uintptr_t) 1 << 26)
-# endif
-#endif
-
-// if we allocate memory using regular malloc/std::malloc when mimalloc has overridden
-// the default allocation, then we end up creating our heap with a chunk of memory that
-// came from mimalloc. Instead we must use mmap/munmap to get system memory that
-// isn't part of the mimalloc heap tracking/usage
-#define PMIMALLOC_USE_MMAP
-
-// /* TODO: Steal numa stuff from Fabian */
-// int get_node(void* ptr){
-//     int numa_node[1] = {-1};
-//     void* page = (void*)((std::size_t)ptr & ~((std::size_t)getpagesize()-1));
-//     int err = move_pages(getpid(), 1, &page , NULL, numa_node, 0);
-//     if (err == -1) {
-//         fmt::print("Move page failed from get_node(). \n");
-//         return -1;
-//     }
-//     return numa_node[0];
-// }
+/*------------------------------------------------------------------*/
+/*                     monotonic_buffer_resource                    */
+/*------------------------------------------------------------------*/
 
 template <typename Base>
 /** @brief Memory living on the host. */
-class host_memory : public Base
+class monotonic_buffer : public std::pmr::
 {
 public:
     host_memory() = default;

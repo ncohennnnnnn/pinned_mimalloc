@@ -2,6 +2,7 @@
 
 #include <sys/mman.h>
 
+#include <cuda_runtime.h>
 #include <fmt/core.h>
 
 /*------------------------------------------------------------------*/
@@ -55,33 +56,20 @@ template <typename Memory>
 class pinned : public Memory
 {
 public:
-    pinned()
-      : Memory{}
+    pinned() = default;
+
+    template <typename... Args>
+    pinned(Args&&... args)
+      : Memory{std::forward<Args>(args)...}
     {
+        _pin_or_unpin(Memory::get_address(), Memory::get_size(), true);
     }
 
-    pinned(Memory&& mem)
-      : Memory{std::move(mem)}
+    template <typename Args>
+    pinned(Args&& args)
+      : Memory{std::forward<Args>(args)}
     {
-        _pin_or_unpin(Memory::m_address, Memory::m_size, true);
-    }
-
-    pinned(const std::size_t size, const std::size_t alignment = 0)
-      : Memory{size, alignment}
-    {
-        _pin_or_unpin(Memory::m_address, Memory::m_size, true);
-    }
-
-    pinned(void* ptr, const std::size_t size)
-      : Memory{ptr, size}
-    {
-        _pin_or_unpin(Memory::m_address, Memory::m_size, true);
-    }
-
-    pinned(void* ptr_a, void* ptr_b, const std::size_t size)
-      : Memory{ptr_a, ptr_b, size}
-    {
-        _pin_or_unpin(Memory::m_address, Memory::m_size, true);
+        _pin_or_unpin(Memory::get_address(), Memory::get_size(), true);
     }
 
     pinned(pinned&&) noexcept = default;
@@ -90,7 +78,7 @@ public:
     {
         if (m_pinned)
         {
-            _pin_or_unpin(Memory::m_address, Memory::m_size, false);
+            _pin_or_unpin(Memory::get_address(), Memory::get_size(), false);
         }
     }
 
@@ -140,6 +128,72 @@ private:
             fmt::print("{} : Memory {}ned. \n", ptr, str);
         }
         return (bool) (1 - success);
+    }
+
+    bool m_pinned = false;
+};
+
+/*------------------------------------------------------------------*/
+/*                          cuda pinning                            */
+/*------------------------------------------------------------------*/
+
+template <typename Memory>
+/** @brief CUDA-pinned memory living on the host. */
+class cuda_pinned : public Memory
+{
+public:
+    cuda_pinned() = default;
+
+    template <typename... Args>
+    cuda_pinned(Args&&... args)
+      : Memory{std::forward<Args>(args)...}
+    {
+        _pin_or_unpin(Memory::get_address(), Memory::get_size(), true);
+    }
+
+    cuda_pinned(cuda_pinned&&) noexcept = default;
+
+    ~cuda_pinned()
+    {
+        if (m_pinned)
+        {
+            _pin_or_unpin(Memory::m_address, Memory::m_size, false);
+        }
+    }
+
+private:
+    void _pin_or_unpin(void* ptr, const size_t size, bool pin)
+    {
+        cudaError_t cudaStatus;
+        if (pin)
+        {
+            /* TODO: Choose the appropriate flags */
+            cudaStatus = cudaHostRegister(ptr, size, cudaHostRegisterDefault);
+            if (cudaStatus != cudaSuccess)
+            {
+                fmt::print("cudaHostRegister failed: {} \n", cudaGetErrorString(cudaStatus));
+                m_pinned = false;
+            }
+            else
+            {
+                fmt::print("{} : Memory pinned (by CUDA). \n", ptr);
+                m_pinned = true;
+            }
+        }
+        else
+        {
+            /* TODO: Choose the appropriate flags */
+            cudaStatus = cudaHostUnregister(ptr);
+            if (cudaStatus != cudaSuccess)
+            {
+                fmt::print("cudaHostUnregister failed: {} \n", cudaGetErrorString(cudaStatus));
+            }
+            else
+            {
+                fmt::print("{} : Memory unpinned (by CUDA). \n", ptr);
+                m_pinned = false;
+            }
+        }
     }
 
     bool m_pinned = false;

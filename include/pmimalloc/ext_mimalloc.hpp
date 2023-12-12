@@ -123,6 +123,11 @@ public:
         return m_heaps.get();
     }
 
+    std::size_t required_alignment()
+    {
+        return MIMALLOC_SEGMENT_ALIGNED_SIZE;
+    }
+
 private:
     mi_arena_id_t m_arena_id{};
     mi_stats_t m_stats;

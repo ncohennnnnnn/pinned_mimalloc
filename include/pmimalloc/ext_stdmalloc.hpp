@@ -3,13 +3,17 @@
 #include <stdexcept>
 #include <unistd.h>
 
-class ext_stdmalloc : public std::pmr::monotonic_buffer_resource
+class ext_stdmalloc /*: public std::pmr::synchronized_pool_resource*/
 {
-public:
-    ext_stdmalloc(void* ptr, const std::size_t size, const int numa_node = -1)
-      : std::pmr::monotonic_buffer_resource{ptr, size}
-    {
-    }
+    // public:
+    //     ext_stdmalloc(void* ptr, const std::size_t size)
+    //     {
+    //         std::pmr::monotonic_buffer_resource res(ptr, size);
+    //         this
+    //         {
+    //             res
+    //         }
+    //     }
 
-    ~ext_stdmalloc() {}
+    //     ~ext_stdmalloc() {}
 };

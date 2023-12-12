@@ -31,34 +31,14 @@ public:
     context()
       : memory_t{}
       , m_backend{}
-      , m_rkey{m_backend.get_remote_key()}
+      , m_rkey{}
     {
     }
 
-    context(memory_t&& mem)
-      : memory_t{std::move(mem)}
-      , m_backend{&mem}
-      , m_rkey{std::move(m_backend.get_remote_key())}
-    {
-    }
-
-    context(const std::size_t size, const std::size_t alignment = 0)
-      : memory_t{size, alignment}
-      , m_backend{memory_t::m_address, memory_t::m_size}
-      , m_rkey{m_backend.get_remote_key()}
-    {
-    }
-
-    context(void* ptr, const std::size_t size)
-      : memory_t{ptr, size}
-      , m_backend{memory_t::m_address, memory_t::m_size}
-      , m_rkey{m_backend.get_remote_key()}
-    {
-    }
-
-    context(void* ptr_a, void* ptr_b, const std::size_t size)
-      : memory_t{ptr_a, ptr_b, size}
-      , m_backend{memory_t::m_address, memory_t::m_size}
+    template <typename... Args>
+    context(Args&&... args)
+      : memory_t{std::forward<Args>(args)...}
+      , m_backend{memory_t::get_address(), memory_t::get_size()}
       , m_rkey{m_backend.get_remote_key()}
     {
     }
@@ -71,7 +51,7 @@ public:
     key_t get_key(T* ptr)
     {
         std::ptrdiff_t diff =
-            reinterpret_cast<uintptr_t>(memory_t::m_address) - reinterpret_cast<uintptr_t>(ptr);
+            reinterpret_cast<uintptr_t>(memory_t::get_address()) - reinterpret_cast<uintptr_t>(ptr);
         if (diff < 0)
         {
             fmt::print("{} : [error] Pointer not in arena.", reinterpret_cast<uintptr_t>(ptr));
