@@ -10,8 +10,6 @@ class backend_none;
 template <typename Memory, typename Backend = backend_none>
 /** @brief Manages and brings together the choice of the registration (Backend)
  * and pinning mechanism (Memory), and memory type to use (Memory).
- *
- * TODO: Throw in some concepts.
 */
 class context : public Memory
 {
@@ -28,11 +26,6 @@ public:
         {
             return (reinterpret_cast<std::uint32_t>(remote_key) + offset);
         }
-        // std::uint64_t offset;
-        // std::uint64_t get()
-        // {
-        //     return (reinterpret_cast<std::uint64_t>(remote_key) + offset);
-        // }
     };
 
     context()

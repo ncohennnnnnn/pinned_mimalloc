@@ -111,20 +111,14 @@ private:
 
     void _device_alloc(const std::size_t alignment = 0)
     {
-        _set_total_size(alignment);
+        cudaMalloc(&m_address_device, m_size);
+        fmt::print("{} : Device memory of size {} cudaMallocated \n", m_address_device, m_size);
 
-        cudaMalloc(&m_raw_address_device, m_total_size);
-        fmt::print(
-            "{} : Device memory of size {} cudaMallocated \n", m_raw_address_device, m_total_size);
-
-        if (m_raw_address_device == nullptr)
+        if (m_address_device == nullptr)
         {
             fmt::print("[error] Device allocation failed \n");
             return;
         }
-
-        m_address_device = _align(m_raw_address_device, alignment);
-        fmt::print("{} : Aligned device pointer \n", m_address_device);
     }
 
     void _mirror_alloc(const std::size_t alignment, size_t size)
@@ -146,8 +140,8 @@ private:
 
     void _device_dealloc(void)
     {
-        cudaFree(m_raw_address_device);
-        fmt::print("{} : Device memory cudaFreed \n", m_raw_address_device);
+        cudaFree(m_address_device);
+        fmt::print("{} : Device memory cudaFreed \n", m_address_device);
     }
 
     void _set_total_size(const std::size_t alignment)
@@ -183,7 +177,6 @@ protected:
     void* m_address;
     void* m_address_device;
     void* m_raw_address;
-    void* m_raw_address_device;
     std::size_t m_size;
     std::size_t m_total_size;
     int m_numa_node;

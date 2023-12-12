@@ -2,11 +2,11 @@
 
 #include <cuda_runtime.h>
 
-template <typename Mirrored_Resource>
-class mirrored : public Mirrored_Resource
+template <typename Resource>
+class mirrored : public Resource
 {
 public:
-    using resource_t = Mirrored_Resource;
+    using resource_t = Resource;
     using this_type = mirrored<resource_t>;
 
     mirrored()

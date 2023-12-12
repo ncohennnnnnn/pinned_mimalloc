@@ -3,6 +3,10 @@
 #include <memory>
 #include <tuple>
 
+/*------------------------------------------------------------------*/
+/*                            resource                              */
+/*------------------------------------------------------------------*/
+
 template <typename Context, typename Malloc>
 class resource : public Context
 {
@@ -75,4 +79,36 @@ public:
 
 protected:
     malloc_t m_malloc;
+};
+
+/*------------------------------------------------------------------*/
+/*               Non-mirrored version of resource                   */
+/*------------------------------------------------------------------*/
+
+template <typename Resource>
+class simple : public Resource
+{
+public:
+    using resource_t = Resource;
+    using this_type = simple<resource_t>;
+
+    simple()
+      : resource_t{}
+    {
+    }
+
+    simple(const std::size_t size, const std::size_t alignment = 0)
+      : resource_t{size, alignment}
+    {
+    }
+
+    simple(void* ptr, const std::size_t size)
+      : resource_t{ptr, size}
+    {
+    }
+
+    simple(void* ptr_a, void* ptr_b, const std::size_t size)
+      : resource_t{ptr_a, ptr_b, size}
+    {
+    }
 };

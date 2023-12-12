@@ -1,24 +1,3 @@
-#pragma once
-
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <errno.h>
-#include <iostream>
-#include <stdexcept>
-#include <sys/mman.h>
-#include <unistd.h>
-
-#include <fmt/core.h>
-
-#if PMIMALLOC_WITH_MIMALLOC
-# ifndef MIMALLOC_SEGMENT_ALIGNED_SIZE
-#  define MIMALLOC_SEGMENT_ALIGNED_SIZE ((uintptr_t) 1 << 26)
-# endif
-#endif
-
-#include <pmimalloc/host_memory.hpp>
-
 template <typename Base>
 /** @brief Already allocated memory living on the host. */
 class user_host_memory : public Base
@@ -36,18 +15,13 @@ public:
       : Base{}
       , m_address{ptr}
       , m_size{size}
+      , m_numa_node{-1}
     {
         // numa_tools n;
         // m_numa_node = numa_tools::get_node(m_address);
-        m_numa_node = -1;
     }
 
     ~user_host_memory() {}
-
-    void destroy()
-    {
-        _deallocate();
-    }
 
     void* get_address(void)
     {
@@ -62,12 +36,6 @@ public:
     int get_numa_node(void)
     {
         return m_numa_node;
-    }
-
-private:
-    void _deallocate()
-    {
-        std::free(m_address);
     }
 
 protected:
