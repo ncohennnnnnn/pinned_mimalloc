@@ -120,6 +120,11 @@ public:
         return m_sptr_resource->deallocate(tmp, n);
     }
 
+    auto get_key(T* ptr)
+    {
+        return m_sptr_resource->get_key(ptr);
+    }
+
     /* Max size */
 
     size_type max_size() const noexcept
