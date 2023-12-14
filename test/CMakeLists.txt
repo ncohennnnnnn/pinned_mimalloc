@@ -7,6 +7,8 @@ set(TEST_SRCS
     test_mirror_threads
     test_mirror_arenas
     test_mirror_arenas_threads
+    test_host_pmr
+    test_host_pmr_threads
 )
 
 # ------------------------------------------------------------------------------

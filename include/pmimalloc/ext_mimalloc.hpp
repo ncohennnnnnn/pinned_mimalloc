@@ -87,8 +87,8 @@ public:
         {
             rtn = mi_heap_malloc(get_heap(), size);
         }
-        //    fmt::print("{} : Memory allocated with size {} from heap {} \n", rtn, size,
-        //        (void*) (tl_ext_mimalloc_heaps));
+        fmt::print(
+            "{} : Memory allocated with size {} from heap {} \n", rtn, size, (void*) (get_heap()));
         return rtn;
     }
 
@@ -110,7 +110,7 @@ public:
                 mi_free(ptr);
             }
         }
-        //    fmt::print("{} : Memory deallocated. \n", ptr);
+        fmt::print("{} : Memory deallocated. \n", ptr);
     }
 
     mi_arena_id_t get_arena()
@@ -121,11 +121,6 @@ public:
     mi_heap_t* get_heap()
     {
         return m_heaps.get();
-    }
-
-    std::size_t required_alignment()
-    {
-        return MIMALLOC_SEGMENT_ALIGNED_SIZE;
     }
 
 private:

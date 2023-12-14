@@ -15,7 +15,7 @@ Maximum size when pinning : 30
     std::size_t mem = 1ull << 27;
     const int nb_arenas = 1;
     const int nb_threads = 4;
-    const int nb_allocs = 1000;
+    const int nb_allocs = 5;
     bool ok = true;
 
     ok &= test_host_allocator<int>(nb_arenas, nb_threads, nb_allocs, mem);

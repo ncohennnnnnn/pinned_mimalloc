@@ -84,7 +84,7 @@ bool test_host_allocator(
     bool ok = true;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().on_host();
+    auto rb = RB.pin().on_host();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     std::vector<alloc_t> allocators;
@@ -120,7 +120,77 @@ bool test_mirror_allocator(
     bool ok = true;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.use_mimalloc().pin().on_host_and_device();
+    auto rb = RB.pin().on_host_and_device();
+    using resource_t = decltype(rb.build());
+    using alloc_t = pmimallocator<allocation_type, resource_t>;
+    alloc_t a(rb, mem);
+    //
+    std::vector<allocation_type*> ptrs(nb_threads * nb_allocs, nullptr);
+    //
+    auto alloc_fn = [&a](int /*arena_index*/) { return a.allocate(sizeof(allocation_type)); };
+    auto set_fn = [](allocation_type* ptr, allocation_type temp) {
+        cudaMemcpy(ptr, &temp, sizeof(allocation_type), cudaMemcpyHostToDevice);
+    };
+    ok &= fill_array_values(nb_arenas, nb_threads, nb_allocs, ptrs, alloc_fn, set_fn);
+    //
+    auto get_fn = [](allocation_type* ptr) {
+        allocation_type temp{0};
+        cudaMemcpy(&temp, ptr, sizeof(allocation_type), cudaMemcpyDeviceToHost);
+        return temp;
+    };
+    auto free_fn = [&a](int /*arena_index*/, allocation_type* ptr) { a.deallocate(ptr); };
+    ok &= check_array_values(nb_arenas, nb_threads, nb_allocs, ptrs, get_fn, free_fn);
+    ptrs.clear();
+    return ok;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* create an allocator using a custom arena then fill an array through several
+   threads and deallocate all on thread */
+template <typename allocation_type>
+bool test_host_pmr_allocator(
+    const int nb_arenas, const int nb_threads, const int nb_allocs, std::size_t mem)
+{
+    bool ok = true;
+    /* Build resource and allocator via resource_builder */
+    resource_builder RB;
+    auto rb = RB.pin().on_host().register_memory().use_stdmalloc();
+    using resource_t = decltype(rb.build());
+    using alloc_t = pmimallocator<allocation_type, resource_t>;
+    std::vector<alloc_t> allocators;
+    for (int i = 0; i < nb_arenas; ++i)
+    {
+        allocators.push_back(alloc_t{rb, mem});
+    }
+    //
+    std::vector<allocation_type*> ptrs(nb_arenas * nb_threads * nb_allocs, nullptr);
+    //
+    auto alloc_fn = [&allocators](int arena_index) {
+        return allocators[arena_index].allocate(sizeof(allocation_type));
+    };
+    auto set_fn = [](allocation_type* ptr, allocation_type temp) { *ptr = temp; };
+    ok &= fill_array_values(nb_arenas, nb_threads, nb_allocs, ptrs, alloc_fn, set_fn);
+    //
+    auto get_fn = [](allocation_type* ptr) { return *ptr; };
+    auto free_fn = [&allocators](int arena_index, allocation_type* ptr) {
+        allocators[arena_index].deallocate(ptr);
+    };
+    ok &= check_array_values(nb_arenas, nb_threads, nb_allocs, ptrs, get_fn, free_fn);
+    ptrs.clear();
+    allocators.clear();
+    return ok;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Test mirror allocator using cudamalloc/cudafree */
+template <typename allocation_type>
+bool test_mirror_pmr_allocator(
+    const int nb_arenas, const int nb_threads, const int nb_allocs, std::size_t mem)
+{
+    bool ok = true;
+    /* Build resource and allocator via resource_builder */
+    resource_builder RB;
+    auto rb = RB.pin().on_host_and_device().use_stdmalloc();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     alloc_t a(rb, mem);
@@ -188,57 +258,57 @@ bool test_mirror_allocator(
 //     resource_builder RB;
 //     std::size_t i = 0;
 //     ok[i] = test_mirror_allocator_rb<allocation_type>(
-//         RB.clear().use_mimalloc().register().pin().host_device(), nb_arenas, nb_allocs, mem);
+//         RB.clear().register().pin().host_device(), nb_arenas, nb_allocs, mem);
 //     ++i;
 //     ok[i] = test_mirror_allocator_rb<allocation_type>(
-//         RB.clear().use_mimalloc().register().cuda_pin().host_device(), nb_arenas, nb_allocs, mem);
+//         RB.clear().register().cuda_pin().host_device(), nb_arenas, nb_allocs, mem);
 //     ++i;
 //     ok[i] = test_mirror_allocator_rb<allocation_type>(
-//         RB.clear().use_mimalloc().register().host_device(), nb_arenas, nb_allocs, mem);
+//         RB.clear().register().host_device(), nb_arenas, nb_allocs, mem);
 //     ++i;
 //     ok[i] = test_mirror_allocator_rb<allocation_type>(
-//         RB.clear().use_mimalloc().pin().host_device(), nb_arenas, nb_allocs, mem);
+//         RB.clear().pin().host_device(), nb_arenas, nb_allocs, mem);
 //     ++i;
 //     ok[i] = test_mirror_allocator_rb<allocation_type>(
-//         RB.clear().use_mimalloc().cuda_pin().host_device(), nb_arenas, nb_allocs, mem);
+//         RB.clear().cuda_pin().host_device(), nb_arenas, nb_allocs, mem);
 //     ++i;
 //     ok[i] = test_mirror_allocator_rb<allocation_type>(
-//         RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
+//         RB.clear().host_device(), nb_arenas, nb_allocs, mem);
 //     ++i;
 //     {
 //         host_memory<base> hm(mem);
 //         ok[i] = test_mirror_allocator_rb<allocation_type>(
-//             RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
+//             RB.clear().host_device(), nb_arenas, nb_allocs, mem);
 //         ++i;
 //     }
 //     {
 //         host_memory<base> hm(mem);
 //         ok[i] = test_mirror_allocator_rb<allocation_type>(
-//             RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
+//             RB.clear().host_device(), nb_arenas, nb_allocs, mem);
 //         ++i;
 //     }
 //     {
 //         host_memory<base> hm(mem);
 //         ok[i] = test_mirror_allocator_rb<allocation_type>(
-//             RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
+//             RB.clear().host_device(), nb_arenas, nb_allocs, mem);
 //         ++i;
 //     }
 //     {
 //         host_memory<base> hm(mem);
 //         ok[i] = test_mirror_allocator_rb<allocation_type>(
-//             RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
+//             RB.clear().host_device(), nb_arenas, nb_allocs, mem);
 //         ++i;
 //     }
 //     {
 //         host_memory<base> hm(mem);
 //         ok[i] = test_mirror_allocator_rb<allocation_type>(
-//             RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
+//             RB.clear().host_device(), nb_arenas, nb_allocs, mem);
 //         ++i;sbatch_file_alloc-test-new_jemalloc
 //     }
 //     {
 //         host_memory<base> hm(mem);
 //         ok[i] = test_mirror_allocator_rb<allocation_type>(
-//             RB.clear().use_mimalloc().host_device(), nb_arenas, nb_allocs, mem);
+//             RB.clear().host_device(), nb_arenas, nb_allocs, mem);
 //         ++i;
 //     }
 // }

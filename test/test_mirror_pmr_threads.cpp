@@ -14,11 +14,11 @@ Maximum size when pinning : 30
     */
     std::size_t mem = 1ull << 27;
     const int nb_arenas = 1;
-    const int nb_threads = 1;
+    const int nb_threads = 4;
     const int nb_allocs = 1000;
     bool ok = true;
 
-    ok &= test_host_pmr_allocator<int>(nb_arenas, nb_threads, nb_allocs, mem);
+    ok &= test_mirror_pmr_allocator<int>(nb_arenas, nb_threads, nb_allocs, mem);
 
     return (ok == true) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

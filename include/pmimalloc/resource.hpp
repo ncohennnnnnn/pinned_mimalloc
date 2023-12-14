@@ -17,16 +17,7 @@ public:
     using malloc_t = Malloc;
     using key_t = context_t::key_t;
 
-    resource() noexcept
-      : m_malloc{}
-    {
-    }
-
-    resource(context_t&& c) noexcept
-      : context_t{std::move(c)}
-      , m_malloc{&c}
-    {
-    }
+    resource() = default;
 
     resource(const this_type& r) noexcept = delete;
 

@@ -80,12 +80,12 @@ using replace_resource_t = typename replace_resource<I, Nested, R, M...>::type;
  Default resource :
      0         1           2           3              4          5
   simple -- Resource -- Context -- not_pinned -- host_memory -- base
-                     \           \
-                    std_malloc  backend_none
+                 \           \
+              ext_mimalloc  backend_none
 */
 
 using default_resource_for_builder =
-    simple<resource<context<not_pinned<host_memory<base>>, backend_none>, ext_stdmalloc>>;
+    simple<resource<context<not_pinned<host_memory<base>>, backend_none>, ext_mimalloc>>;
 
 template <typename Resource = default_resource_for_builder>
 /** @brief Resource builder, eases the construction of a resource.
@@ -113,17 +113,15 @@ private:
     }
 
 public:
-#if PMIMALLOC_WITH_MIMALLOC
     constexpr auto use_mimalloc(void) const
     {
-        // arena resources are stored at position 1 in the resource nest
+        // pinned resources are stored at position 3 in the resource nest
         return updated<1, resource, ext_mimalloc>();
     }
-#endif
 
     constexpr auto use_stdmalloc(void) const
     {
-        // arena resources are stored at position 1 in the resource nest
+        // pinned resources are stored at position 3 in the resource nest
         return updated<1, resource, ext_stdmalloc>();
     }
 
@@ -271,108 +269,18 @@ struct handler_builder
 
 /*
 ------------------------------------------------------------------
-             pmr::monotonic_buffer_resource builder                           
+                 pmr::memory_resource builder
 ------------------------------------------------------------------
-
- Default resource :
-     0         1           2           3              4          5
-  simple -- Resource -- Context -- not_pinned -- host_memory -- base
-                             \
-                            backend_none
 */
 
-// using default_pmr_resource = simple<resource<context<not_pinned<host_memory<base>>, backend_none>>>;
+template <typename Resource>
+std::pmr::monotonic_buffer_resource make_mbuffer(const Resource& r)
+{
+    return std::pmr::monotonic_buffer_resource{r.get_address(), r.get_size()};
+}
 
-// template <typename Resource = default_pmr_resource>
-// /** @brief Resource builder, eases the construction of a resource.
-//  * @tparam Resource: the type of the resource (nested chain of resources).
-//  * @tparam Args: type of parameters to feed to the resource constructor.
-//  * @returns a new instance of the pmr_resource_builder class template with potentially altered template type arguments
-//  * which holds an updated argument tuple.
-//  * @fn build() @returns a nested resource which is constructed from `args`.
-// */
-// struct pmr_resource_builder
-// {
-//     using resource_t = Resource;
-
-//     constexpr pmr_resource_builder() {}
-
-//     constexpr pmr_resource_builder(const pmr_resource_builder&) = default;
-//     constexpr pmr_resource_builder(pmr_resource_builder&&) = default;
-
-// private:
-//     constexpr auto mirrored_allocations(void) const
-//     {
-//         // mirrored resources stored at position 0 in the resource nest
-//         return updated<0, mirrored>();
-//     }
-
-// public:
-// #if WITH_MPI || WITH_LIBFABRIC || WITH_UCX
-//     constexpr auto register_memory(void) const
-//     {
-//         // registered resources are stored at position 2 in the resource nest
-//         return updated<2, context, backend>();
-//     }
-// #endif
-
-//     constexpr auto pin(void) const
-//     {
-//         // pinned resources are stored at position 3 in the resource nest
-//         return updated<3, pinned>();
-//     }
-
-// #if WITH_CUDA
-//     constexpr auto cuda_pin(void) const
-//     {
-//         // pinned resources are stored at position 3 in the resource nest
-//         return updated<3, cuda_pinned>();
-//     }
-// #endif
-
-//     constexpr auto on_host(void) const
-//     {
-//         // memory resources are stored at position 4 in the resource nest
-//         return updated<4, host_memory>();
-//     }
-
-//     constexpr auto on_host_and_device(void) const
-//     {
-//         // memory resources are stored at position 4 in the resource nest
-//         auto tmp = mirrored_allocations();
-//         return tmp.template updated<4, host_device_memory>();
-//     }
-
-//     constexpr auto mirror_user_memory(void) const
-//     {
-//         // memory resources are stored at position 4 in the resource nest
-//         auto tmp = mirrored_allocations();
-//         return tmp.template updated<4, mirrored_user_memory>();
-//     }
-
-//     constexpr auto use_host_memory(void) const
-//     {
-//         // memory resources are stored at position 4 in the resource nest
-//         return updated<4, user_host_memory>();
-//     }
-
-//     constexpr pmr_resource_builder<> clear(void) const
-//     {
-//         return {};
-//     }
-
-//     template <typename... Args>
-//     constexpr resource_t build(Args... args) const
-//     {
-//         return resource_t(std::move(args)...);
-//     }
-
-//     template <std::size_t I, template <typename...> typename R, typename... M>
-//     constexpr auto updated() const
-//     {
-//         // create a new nested resource type by replacing the old resource class template
-//         using R_new = replace_resource_t<I, resource_t, R, M...>;
-//         // return new nested_resource class template instantiation
-//         return pmr_resource_builder<R_new>{};
-//     }
-// };
+template <typename PMR_Resource>
+std::pmr::synchronized_pool_resource make_spool(const PMR_Resource& pmr_r)
+{
+    return std::pmr::synchronized_pool_resource{pmr_r};
+}

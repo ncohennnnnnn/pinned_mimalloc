@@ -21,10 +21,10 @@ public:
     struct key_t
     {
         rkey_t remote_key;
-        std::uint32_t offset;
-        std::uint32_t get()
+        std::uint64_t offset;
+        std::uint64_t get()
         {
-            return (reinterpret_cast<std::uint32_t>(remote_key) + offset);
+            return (reinterpret_cast<std::uint64_t>(remote_key) + offset);
         }
     };
 

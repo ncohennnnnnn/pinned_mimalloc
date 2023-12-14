@@ -11,23 +11,11 @@ public:
     using resource_t = Resource;
     using this_type = mirrored<resource_t>;
 
-    mirrored()
-      : resource_t{}
-    {
-    }
+    mirrored() = default;
 
-    mirrored(const std::size_t size, const std::size_t alignment = 0)
-      : resource_t{size, alignment}
-    {
-    }
-
-    mirrored(void* ptr, const std::size_t size)
-      : resource_t{ptr, size}
-    {
-    }
-
-    mirrored(void* ptr_a, void* ptr_b, const std::size_t size)
-      : resource_t{ptr_a, ptr_b, size}
+    template <typename... Args>
+    mirrored(Args&&... args)
+      : resource_t{std::forward<Args>(args)...}
     {
     }
 

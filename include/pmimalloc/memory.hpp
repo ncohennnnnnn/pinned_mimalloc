@@ -394,3 +394,173 @@ private:
     bool m_from_host = false;
     bool m_from_device = false;
 };
+
+/*------------------------------------------------------------------*/
+/*                        pmr::Host memory                          */
+/*------------------------------------------------------------------*/
+
+template <typename Base>
+/** @brief Memory on the host.
+*/
+class pmr_host_memory : private to_be_allocated_memory<Base>
+{
+public:
+    pmr_host_memory() = default;
+
+    pmr_host_memory(const std::size_t size, const std::size_t alignment = 0)
+    {
+        this->set_size(size);
+        this->_host_alloc(0);
+    }
+
+    ~pmr_host_memory() = default;
+
+    void* get_address(void)
+    {
+        return this->m_address;
+    }
+
+    std::size_t get_size(void)
+    {
+        return this->m_size;
+    }
+
+    int get_numa_node(void)
+    {
+        return this->m_numa_node;
+    }
+};
+
+/*------------------------------------------------------------------*/
+/*                     pmr::Host-device memory                      */
+/*------------------------------------------------------------------*/
+
+template <typename Base>
+/** @brief Memory mirrored on the host and device.
+ * TODO:  do we need to know the device id ?
+*/
+class pmr_host_device_memory : private to_be_allocated_memory<Base>
+{
+public:
+    pmr_host_device_memory() = default;
+
+    pmr_host_device_memory(const std::size_t size, const std::size_t alignment = 0)
+    {
+        this->set_size(size);
+        this->_mirror_alloc(0, size);
+    }
+
+    ~pmr_host_device_memory()
+    {
+        this->_device_dealloc();
+    }
+
+    void* get_address_device(void)
+    {
+        return this->m_address_device;
+    }
+
+    void* get_address(void)
+    {
+        return this->m_address;
+    }
+
+    std::size_t get_size(void)
+    {
+        return this->m_size;
+    }
+
+    int get_numa_node(void)
+    {
+        return this->m_numa_node;
+    }
+};
+
+/*------------------------------------------------------------------*/
+/*                       Mirrored user memory                       */
+/*------------------------------------------------------------------*/
+
+template <typename Base>
+/** @brief Memory mirrored on the host and device.
+ * TODO:  do we need to know the device id ?
+*/
+class pmr_mirrored_user_memory : private to_be_allocated_memory<Base>
+{
+public:
+    pmr_mirrored_user_memory() = default;
+
+    pmr_mirrored_user_memory(void* ptr, const std::size_t s)
+    {
+        this->set_size(s);
+        if (!_is_on_device(ptr))
+        {
+            this->_device_alloc(s);
+            this->set_address(ptr);
+            this->set_raw_address(ptr);
+            m_from_host = true;
+        }
+        else
+        {
+            this->_host_alloc(s);
+            this->set_address_device(ptr);
+            m_from_device = true;
+        }
+    }
+
+    pmr_mirrored_user_memory(void* ptr_a, void* ptr_b, const std::size_t s)
+      : m_from_device{true}
+      , m_from_host{true}
+    {
+        this->set_size(s);
+        if (_is_on_device(ptr_a) == _is_on_device(ptr_b))
+        {
+            fmt::print("[error] Both pointers live on the same kind of memory !\n");
+            pmr_mirrored_user_memory{};
+        }
+        if (_is_on_device(ptr_b))
+        {
+            this->set_address(ptr_a);
+            this->set_address_device(ptr_b);
+            this->set_raw_address(ptr_a);
+        }
+    }
+
+    ~pmr_mirrored_user_memory()
+    {
+        if (!m_from_device)
+            this->_device_dealloc();
+    }
+
+    void* get_address_device(void)
+    {
+        return this->m_address_device;
+    }
+
+    void* get_address(void)
+    {
+        return this->m_address;
+    }
+
+    std::size_t get_size(void)
+    {
+        return this->m_size;
+    }
+
+    int get_numa_node(void)
+    {
+        return this->m_numa_node;
+    }
+
+private:
+    bool _is_on_device(const void* ptr)
+    {
+        cudaPointerAttributes attributes;
+        cudaError_t err = cudaPointerGetAttributes(&attributes, ptr);
+        if (err || attributes.type != 2)
+            return false;
+        return true;
+    }
+
+    bool m_from_host = false;
+    bool m_from_device = false;
+};
