@@ -104,7 +104,7 @@ public:
     /* Allocate */
     [[nodiscard]] T* allocate(const std::size_t n)
     {
-        if (n > std::numeric_limits<size_type>::max() / sizeof(T))
+        if (n > m_sptr_resource->get_size() / sizeof(T))
         {
             /* Check for overflow */
             throw std::bad_alloc();

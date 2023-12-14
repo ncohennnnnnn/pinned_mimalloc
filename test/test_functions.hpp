@@ -154,7 +154,7 @@ bool test_host_pmr_allocator(
     bool ok = true;
     /* Build resource and allocator via resource_builder */
     resource_builder RB;
-    auto rb = RB.pin().on_host().register_memory().use_stdmalloc();
+    auto rb = RB.pin().on_host().use_stdmalloc();
     using resource_t = decltype(rb.build());
     using alloc_t = pmimallocator<allocation_type, resource_t>;
     std::vector<alloc_t> allocators;

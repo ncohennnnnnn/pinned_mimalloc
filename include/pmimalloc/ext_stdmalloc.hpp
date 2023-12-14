@@ -10,8 +10,6 @@ public:
       : m_mbuffer{ptr, size}
       , m_spool{&m_mbuffer}
     {
-        // std::pmr::monotonic_buffer_resource mbuffer(ptr, size);
-        // m_spool = std::pmr::synchronized_pool_resource{&mbuffer};
     }
 
     ~ext_stdmalloc() {}
@@ -19,13 +17,12 @@ public:
     void* allocate(const std::size_t size, const std::size_t alignment = 0)
     {
         void* rtn = m_spool.allocate(size, alignment);
-        // fmt::print("{} : Memory allocated with size {} \n", rtn, size);
         return rtn;
     }
 
     void* reallocate(void* ptr, std::size_t size)
     {
-        // fmt::print("Sorry, no reallocate function \n");
+        fmt::print("Sorry, no reallocate function \n");
         return nullptr;
     }
 
