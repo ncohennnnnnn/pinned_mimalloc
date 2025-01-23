@@ -75,9 +75,9 @@ public:
     {
         uintptr_t ptr_ = reinterpret_cast<uintptr_t>(ptr);
         uintptr_t device_arena_ = reinterpret_cast<uintptr_t>(this->get_address_device());
-        if (ptr_ - device_arena_ < 0 || ptr_ - device_arena_ >= this->get_size())
-            return false;
-        return true;
+        if ((device_arena_ - ptr_) < this->get_size())
+            return true;
+        return false;
     }
 };
 
