@@ -115,11 +115,8 @@ endif()
 # ---------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------
-set(ENABLE_LOGGING
-    OFF
-    CACHE BOOL "print logging info to cerr"
-)
-if(ENABLE_LOGGING)
+option(PMIMALLOC_ENABLE_LOGGING OFF "print logging info to cerr")
+if(PMIMALLOC_ENABLE_LOGGING)
   set(PMI_LOG_SRC src/log.cpp)
 endif()
 
@@ -140,7 +137,7 @@ get_external_project(
 
 if(NOT MI_SKIP_COLLECT_ON_EXIT)
   message(
-    FATAL_ERROR "Please rerun cmake using 'cmake -DMI_SKIP_COLLECT_ON_EXIT=ON'"
+    WARNING "It is recommended to use 'cmake -DMI_SKIP_COLLECT_ON_EXIT=ON'"
   )
 endif()
 
@@ -163,10 +160,10 @@ else()
   set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/numa.cpp ${PMI_LOG_SRC})
 endif()
 add_library(pmimalloc_${BACKEND} SHARED ${BACKEND_SOURCE})
-if(ENABLE_LOGGING)
+if(PMIMALLOC_ENABLE_LOGGING)
   target_compile_definitions(
-    pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC ENABLE_LOGGING
-                                WITH_${BACKEND_U}
+    pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC
+                                PMIMALLOC_ENABLE_LOGGING WITH_${BACKEND_U}
   )
 else()
   target_compile_definitions(

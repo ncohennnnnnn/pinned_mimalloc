@@ -4,14 +4,14 @@
 
 // use the variadic macro LOG to log messages
 // the arguments will be divided by a whitespace
-#ifdef ENABLE_LOGGING
+#ifdef PMIMALLOC_ENABLE_LOGGING
 # define LOG(...) ::log_message(__VA_ARGS__, "(", __FILE__, ":", __LINE__, ")");
 #else
 # define LOG(...)
 #endif
 
 // implementation
-#ifdef ENABLE_LOGGING
+#ifdef PMIMALLOC_ENABLE_LOGGING
 # include <sstream>
 
 std::stringstream& log_stream();

@@ -8,4 +8,4 @@
 // #cmakedefine01 ENABLE_DEVICE
 // #cmakedefine DEVICE_RUNTIME "@DEVICE_RUNTIME_@"
 // #define @DEVICE@
-#cmakedefine ENABLE_LOGGING
+#cmakedefine PMIMALLOC_ENABLE_LOGGING
