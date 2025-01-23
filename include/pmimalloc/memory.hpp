@@ -11,6 +11,7 @@
 //
 #include <cuda_runtime.h>
 #include <fmt/core.h>
+#include <mimalloc.h>
 //
 #ifndef MIMALLOC_SEGMENT_ALIGNED_SIZE
 # define MIMALLOC_SEGMENT_ALIGNED_SIZE ((uintptr_t) 1 << 26)
@@ -88,6 +89,11 @@ protected:
 
     void _host_dealloc(void)
     {
+// this is never defined currently as mimalloc does not export the #define
+#ifdef PMIMALLOC_DO_COLLECT_ON_EXIT
+        mi_collect(false);
+        fmt::print("calling mi_collect \n");
+#endif
         if (munmap(m_raw_address, m_total_size) != 0)
         {
             fmt::print("{} : [error] munmap failed \n", m_raw_address);
@@ -171,8 +177,10 @@ public:
 
     ~host_memory()
     {
-#ifndef MI_SKIP_COLLECT_ON_EXIT
-        int val = 0;    // mi_option_get(mi_option_limit_os_alloc);
+#ifdef PMIMALLOC_DO_COLLECT_ON_EXIT
+        int val = 0;
+#else
+        int val = mi_option_get(mi_option_limit_os_alloc);
 #endif
         if (!val)
             this->_host_dealloc();
@@ -217,8 +225,10 @@ public:
 
     ~host_device_memory()
     {
-#ifndef MI_SKIP_COLLECT_ON_EXIT
-        int val = 0;    // mi_option_get(mi_option_limit_os_alloc);
+#ifdef PMIMALLOC_DO_COLLECT_ON_EXIT
+        int val = 0;
+#else
+        int val = mi_option_get(mi_option_limit_os_alloc);
 #endif
         if (!val)
             this->_host_dealloc();
@@ -342,8 +352,10 @@ public:
 
     ~mirrored_user_memory()
     {
-#ifndef MI_SKIP_COLLECT_ON_EXIT
-        int val = 0;    // mi_option_get(mi_option_limit_os_alloc);
+#ifdef PMIMALLOC_DO_COLLECT_ON_EXIT
+        int val = 0;
+#else
+        int val = mi_option_get(mi_option_limit_os_alloc);
 #endif
         if (!val)
         {

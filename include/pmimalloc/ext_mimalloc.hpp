@@ -7,8 +7,9 @@
 #include <fmt/core.h>
 
 #include <mimalloc.h>
-/* TODO: Put this under a debug option */
-#include <mimalloc/internal.h>
+#ifdef PMIMALLOC_WITH_MIMALLOC
+# include <mimalloc/internal.h>
+#endif
 
 #include <pmimalloc/indexed_tl_ptr.hpp>
 
@@ -49,8 +50,8 @@ public:
 
             /* OS tag to assign to mimalloc'd memory. */
             // mi_option_enable(mi_option_os_tag);
-            bool success =
-                mi_manage_os_memory_ex(ptr, size, true, false, true, numa_node, true, &m_arena_id);
+            bool success = mi_manage_os_memory_ex(ptr, size, /*is_committed*/ true,
+                /*is_large*/ false, /*is_zero*/ true, numa_node, /*exclusive*/ true, &m_arena_id);
             if (!success)
             {
                 fmt::print("{} : [error] ext_mimalloc failed to create the arena. \n", ptr);
@@ -61,7 +62,7 @@ public:
             }
             m_heaps =
                 indexed_tl_ptr<mi_heap_t>{[this]() { return mi_heap_new_in_arena(m_arena_id); },
-                    [](mi_heap_t* heap) {
+                    [](mi_heap_t* /* heap */) {
                         // if (heap->page_count != 0)
                         //     fmt::print("Heap not empty \n");
                         fmt::print("Deleting heap \n");
@@ -125,6 +126,6 @@ public:
 
 private:
     mi_arena_id_t m_arena_id{};
-    mi_stats_t m_stats;
+    // mi_stats_t m_stats;
     indexed_tl_ptr<mi_heap_t> m_heaps;
 };

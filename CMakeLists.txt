@@ -135,12 +135,6 @@ get_external_project(
   PREFER_LOCAL # we want to debug mimalloc, so prefer building locally
 )
 
-if(NOT MI_SKIP_COLLECT_ON_EXIT)
-  message(
-    WARNING "It is recommended to use 'cmake -DMI_SKIP_COLLECT_ON_EXIT=ON'"
-  )
-endif()
-
 # ------------------------------------------------------------------------------
 # Choice of backend provider
 # ------------------------------------------------------------------------------
@@ -231,6 +225,19 @@ elseif(${BACKEND} STREQUAL "none")
 endif()
 
 add_library(pmimalloc ALIAS pmimalloc_${BACKEND})
+
+# ---------------------------------------------------------------------
+# PMIMALLOC_DO_COLLECT_ON_EXIT
+# ---------------------------------------------------------------------
+option(PMIMALLOC_DO_COLLECT_ON_EXIT ON "call mi collect when deleting allocators (necessary when mimalloc was compiler without MI_SKIP_COLLECT_ON_EXIT)")
+if(PMIMALLOC_DO_COLLECT_ON_EXIT)
+  target_compile_definitions(
+    pmimalloc_${PMIMALLOC_BACKEND} PUBLIC PMIMALLOC_DO_COLLECT_ON_EXIT)
+else()
+  message(STATUS
+    "It is recommended to use 'cmake -DPMIMALLOC_DO_COLLECT_ON_EXIT=ON' unless certain mimalloc has MI_SKIP_COLLECT_ON_EXIT set"
+  )
+endif()
 
 # ---------------------------------------------------------------------
 # NUMA setup
