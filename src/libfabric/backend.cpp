@@ -15,7 +15,7 @@ int backend::deregister(void)
 }
 
 template <typename T>
-inline int backend::register_ptr(T* ptr, void* base_ptr, std::size_t base_size) const
+inline int backend::register_ptr(T* ptr, void* base_ptr, std::size_t base_size) /* const */
 {
     void* ptr_tmp = static_cast<void*>(ptr);
     uint64_t offset;

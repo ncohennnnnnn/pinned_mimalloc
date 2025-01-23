@@ -73,7 +73,7 @@ public:
     }
 
     template <typename T>
-    inline int register_ptr(T* ptr, void* base_ptr, std::size_t base_size) const;
+    inline int register_ptr(T* ptr, void* base_ptr, std::size_t base_size) /* const */;
 
     /* Default registration flags for this provider */
     static inline constexpr int flags()
