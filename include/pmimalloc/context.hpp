@@ -57,7 +57,7 @@ public:
             fmt::print("{} : [error] Pointer not in arena.", reinterpret_cast<uintptr_t>(ptr));
             return NULL;
         }
-        return {m_rkey, reinterpret_cast<uint32_t>(diff)};
+        return {m_rkey, static_cast<std::uint64_t>(diff)};
     }
 
     rkey_t get_key()
