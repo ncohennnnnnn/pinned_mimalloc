@@ -19,13 +19,15 @@ bool fill_array_values(const int nb_arenas, const std::size_t nb_threads,
         {
             threads.push_back(std::jthread{
                 [nb_arenas, nb_allocs, alloc_fn, set_fn, &ptrs](int thread_id) mutable {
-                    for (int i = 0; i < nb_allocs; ++i)
+                    for (unsigned int i = 0; i < nb_allocs; ++i)
                     {
                         for (int j = 0; j < nb_arenas; ++j)
                         {
                             T* ptr = alloc_fn(j);
                             ptrs[thread_id * nb_arenas * nb_allocs + j * nb_allocs + i] = ptr;
-                            set_fn(ptr, T{thread_id * nb_allocs * nb_arenas + j * nb_allocs + i});
+                            set_fn(ptr,
+                                T{static_cast<int>(
+                                    thread_id * nb_allocs * nb_arenas + j * nb_allocs + i)});
                         }
                     }
                 },
