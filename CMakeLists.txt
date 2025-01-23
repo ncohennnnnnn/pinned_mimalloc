@@ -53,7 +53,7 @@ include(GNUInstallDirs)
 # ------------------------------------------------------------------------------
 set(PMIMALLOC_WITH_MIMALLOC
     ON
-    CACHE BOOL "compile pmimalloc with mimalloc library"
+    CACHE BOOL "Build mimalloc as a subproject of pmimalloc "
 )
 
 # ------------------------------------------------------------------------------
@@ -138,55 +138,60 @@ get_external_project(
 # ------------------------------------------------------------------------------
 # Choice of backend provider
 # ------------------------------------------------------------------------------
-set(BACKEND
+set(PMIMALLOC_BACKEND
     "none"
     CACHE STRING "Choose the type of the backend."
 )
-set_property(CACHE BACKEND PROPERTY STRINGS "libfabric" "ucx" "mpi" "none")
+set_property(
+  CACHE PMIMALLOC_BACKEND PROPERTY STRINGS "libfabric" "ucx" "mpi" "none"
+)
 
-string(TOUPPER ${BACKEND} BACKEND_U)
+string(TOUPPER ${PMIMALLOC_BACKEND} BACKEND_U)
 
 # set(BACKEND_ ${BACKEND_U} CACHE INTERNAL "" FORCE) set(PMIMALLOC_DEVICE
 # "PMIMALLOC_DEVICE_${BACKEND_}" CACHE INTERNAL "" FORCE)
-if(${BACKEND} STREQUAL "none")
+if(${PMIMALLOC_BACKEND} STREQUAL "none")
   set(BACKEND_SOURCE src/numa.cpp ${PMI_LOG_SRC})
 else()
-  set(BACKEND_SOURCE src/${BACKEND}/backend.cpp src/numa.cpp ${PMI_LOG_SRC})
+  set(BACKEND_SOURCE src/${PMIMALLOC_BACKEND}/backend.cpp src/numa.cpp
+                     ${PMI_LOG_SRC}
+  )
 endif()
-add_library(pmimalloc_${BACKEND} SHARED ${BACKEND_SOURCE})
+add_library(pmimalloc_${PMIMALLOC_BACKEND} SHARED ${BACKEND_SOURCE})
 if(PMIMALLOC_ENABLE_LOGGING)
   target_compile_definitions(
-    pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC
-                                PMIMALLOC_ENABLE_LOGGING WITH_${BACKEND_U}
+    pmimalloc_${PMIMALLOC_BACKEND} PUBLIC WITH_${BACKEND_U}
+                                          PMIMALLOC_ENABLE_LOGGING
   )
 else()
   target_compile_definitions(
-    pmimalloc_${BACKEND} PUBLIC PMIMALLOC_WITH_MIMALLOC WITH_${BACKEND_U}
+    pmimalloc_${PMIMALLOC_BACKEND} PUBLIC WITH_${BACKEND_U}
   )
 endif()
 set_target_properties(
-  pmimalloc_${BACKEND} PROPERTIES PUBLIC_HEADER include/allocator.h
+  pmimalloc_${PMIMALLOC_BACKEND} PROPERTIES PUBLIC_HEADER include/allocator.h
 )
 target_include_directories(
-  pmimalloc_${BACKEND} PUBLIC include src/${BACKEND} ext/mimalloc/include
+  pmimalloc_${PMIMALLOC_BACKEND} PUBLIC include src/${PMIMALLOC_BACKEND}
+                                        ext/mimalloc/include
 )
 target_link_libraries(
-  pmimalloc_${BACKEND}
+  pmimalloc_${PMIMALLOC_BACKEND}
   PUBLIC fmt::fmt-header-only NUMA::libnuma CUDA::cudart
   PUBLIC mimalloc
 )
 
 install(
-  TARGETS pmimalloc_${BACKEND}
+  TARGETS pmimalloc_${PMIMALLOC_BACKEND}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${BACKEND}.pc
+install(FILES ${CMAKE_BINARY_DIR}/pmimalloc_${PMIMALLOC_BACKEND}.pc
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig
 )
 
-if(${BACKEND} STREQUAL "libfabric")
+if(${PMIMALLOC_BACKEND} STREQUAL "libfabric")
   # ----------------------------
   # libfabric backend
   # ----------------------------
@@ -196,21 +201,21 @@ if(${BACKEND} STREQUAL "libfabric")
   message(STATUS "Found Boost : ${BOOST_FOUND}")
 
   target_link_libraries(
-    pmimalloc_${BACKEND}
+    pmimalloc_${PMIMALLOC_BACKEND}
     PRIVATE Boost::boost
     PUBLIC libfabric::libfabric
   )
 
-elseif(${BACKEND} STREQUAL "ucx")
+elseif(${PMIMALLOC_BACKEND} STREQUAL "ucx")
   # ----------------------------
   # ucx backend
   # ----------------------------
   find_package(UCX REQUIRED)
   message(STATUS "Found UCX : ${UCX_FOUND}")
 
-  target_link_libraries(pmimalloc_${BACKEND} PUBLIC UCX::ucx)
+  target_link_libraries(pmimalloc_${PMIMALLOC_BACKEND} PUBLIC UCX::ucx)
 
-elseif(${BACKEND} STREQUAL "mpi")
+elseif(${PMIMALLOC_BACKEND} STREQUAL "mpi")
   # ----------------------------
   # mpi backend
   # ----------------------------
@@ -218,24 +223,30 @@ elseif(${BACKEND} STREQUAL "mpi")
   message(STATUS "Found MPI : ${MPI_FOUND}")
 
   # create backend library
-  target_link_libraries(pmimalloc_${BACKEND} PUBLIC MPI::MPI_CXX)
+  target_link_libraries(pmimalloc_${PMIMALLOC_BACKEND} PUBLIC MPI::MPI_CXX)
 
-elseif(${BACKEND} STREQUAL "none")
+elseif(${PMIMALLOC_BACKEND} STREQUAL "none")
   message("No backend selected.")
 endif()
 
-add_library(pmimalloc ALIAS pmimalloc_${BACKEND})
+add_library(pmimalloc ALIAS pmimalloc_${PMIMALLOC_BACKEND})
 
 # ---------------------------------------------------------------------
 # PMIMALLOC_DO_COLLECT_ON_EXIT
 # ---------------------------------------------------------------------
-option(PMIMALLOC_DO_COLLECT_ON_EXIT ON "call mi collect when deleting allocators (necessary when mimalloc was compiler without MI_SKIP_COLLECT_ON_EXIT)")
+option(
+  PMIMALLOC_DO_COLLECT_ON_EXIT
+  ON
+  "call mi collect when deleting allocators (necessary when mimalloc was compiler without MI_SKIP_COLLECT_ON_EXIT)"
+)
 if(PMIMALLOC_DO_COLLECT_ON_EXIT)
   target_compile_definitions(
-    pmimalloc_${PMIMALLOC_BACKEND} PUBLIC PMIMALLOC_DO_COLLECT_ON_EXIT)
+    pmimalloc_${PMIMALLOC_BACKEND} PUBLIC PMIMALLOC_DO_COLLECT_ON_EXIT
+  )
 else()
-  message(STATUS
-    "It is recommended to use 'cmake -DPMIMALLOC_DO_COLLECT_ON_EXIT=ON' unless certain mimalloc has MI_SKIP_COLLECT_ON_EXIT set"
+  message(
+    STATUS
+      "It is recommended to use 'cmake -DPMIMALLOC_DO_COLLECT_ON_EXIT=ON' unless certain mimalloc has MI_SKIP_COLLECT_ON_EXIT set"
   )
 endif()
 
@@ -254,17 +265,17 @@ endif()
 # target_link_libraries(pmimalloc PRIVATE libfabric::libfabric Boost::boost)
 # target_compile_definitions(pmimalloc PRIVATE WITH_LIBFABRIC)
 # target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
-# target_include_directories(pmimalloc PUBLIC src/${BACKEND})
+# target_include_directories(pmimalloc PUBLIC src/${PMIMALLOC_BACKEND})
 
 # target_link_libraries(pmimalloc PRIVATE UCX::ucx)
 # target_compile_definitions(pmimalloc PRIVATE WITH_UCX)
 # target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
-# target_include_directories(pmimalloc PUBLIC src/${BACKEND})
+# target_include_directories(pmimalloc PUBLIC src/${PMIMALLOC_BACKEND})
 
 # target_link_libraries(pmimalloc PRIVATE MPI::MPI_CXX)
 # target_compile_definitions(pmimalloc PRIVATE WITH_MPI)
 # target_sources(pmimalloc PRIVATE ${BACKEND_SOURCE})
-# target_include_directories(pmimalloc PUBLIC src/${BACKEND})
+# target_include_directories(pmimalloc PUBLIC src/${PMIMALLOC_BACKEND})
 
 # ------------------------------------------------------------------------------
 # CTESTs

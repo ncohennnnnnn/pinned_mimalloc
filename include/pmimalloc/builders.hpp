@@ -2,6 +2,7 @@
 
 #include <pmimalloc/base.hpp>
 #include <pmimalloc/context.hpp>
+#include <pmimalloc/ext_mimalloc.hpp>
 #include <pmimalloc/ext_stdmalloc.hpp>
 #include <pmimalloc/handler.hpp>
 #include <pmimalloc/memory.hpp>
@@ -9,9 +10,6 @@
 #include <pmimalloc/pinning.hpp>
 #include <pmimalloc/resource.hpp>
 
-#if PMIMALLOC_WITH_MIMALLOC
-# include <pmimalloc/ext_mimalloc.hpp>
-#endif
 #if WITH_MPI
 # include <../src/mpi/backend.hpp>
 #endif
@@ -34,7 +32,7 @@
 
 /*
 ------------------------------------------------------------------
-                   Nested resource technology                     
+                   Nested resource technology
 ------------------------------------------------------------------
 
 Replace a resource class template at postion I in a nested resource type.
@@ -74,7 +72,7 @@ using replace_resource_t = typename replace_resource<I, Nested, R, M...>::type;
 
 /*
 ------------------------------------------------------------------
-                       Resource builder                           
+                       Resource builder
 ------------------------------------------------------------------
 
  Default resource :
@@ -202,7 +200,7 @@ public:
 
 /*
 ------------------------------------------------------------------
-                             Handler                              
+                             Handler
 ------------------------------------------------------------------
 
  Default handler :
