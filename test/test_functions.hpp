@@ -7,8 +7,9 @@
 
 /* ---------------------------------------------------------------------------- */
 template <typename T, typename AllocFunction, typename SetFunction>
-bool fill_array_values(const int nb_arenas, const int nb_threads, const int nb_allocs,
-    std::vector<T*>& ptrs, AllocFunction&& alloc_fn, SetFunction&& set_fn)
+bool fill_array_values(const int nb_arenas, const std::size_t nb_threads,
+    const std::size_t nb_allocs, std::vector<T*>& ptrs, AllocFunction&& alloc_fn,
+    SetFunction&& set_fn)
 {
     try
     {
@@ -75,7 +76,7 @@ bool check_array_values(const int nb_arenas, const int nb_threads, const int nb_
 }
 
 /* ---------------------------------------------------------------------------- */
-/* create an allocator using a custom arena then fill an array through several 
+/* create an allocator using a custom arena then fill an array through several
    threads and deallocate all on thread */
 template <typename allocation_type>
 bool test_host_allocator(

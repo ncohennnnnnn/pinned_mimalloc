@@ -6,7 +6,7 @@
 class ext_stdmalloc
 {
 public:
-    ext_stdmalloc(void* ptr, const std::size_t size, int numa_node)
+    ext_stdmalloc(void* ptr, const std::size_t size, int /* numa_node */)
       : m_mbuffer{ptr, size}
       , m_spool{&m_mbuffer}
     {
@@ -20,7 +20,7 @@ public:
         return rtn;
     }
 
-    void* reallocate(void* ptr, std::size_t size)
+    void* reallocate(void* /* ptr */, std::size_t /* size */)
     {
         fmt::print("Sorry, no reallocate function \n");
         return nullptr;

@@ -66,7 +66,7 @@ protected:
         fmt::print("{} : Aligned host pointer \n", this->m_address);
     }
 
-    void _device_alloc(const std::size_t alignment = 0)
+    void _device_alloc(const std::size_t /* alignment */ = 0)
     {
         cudaMalloc(&m_address_device, this->m_size);
         fmt::print(
@@ -79,7 +79,7 @@ protected:
         }
     }
 
-    void _mirror_alloc(const std::size_t alignment, size_t size)
+    void _mirror_alloc(const std::size_t alignment, size_t /*size*/)
     {
         _align_and_set_total_size(alignment);
         _host_alloc(alignment);
@@ -93,7 +93,7 @@ protected:
             fmt::print("{} : [error] munmap failed \n", m_raw_address);
             return;
         }
-        fmt::print("{} : Host memory munmaped \n", m_raw_address);
+        fmt::print("{} : Host memory munmap'ed \n", m_raw_address);
     }
 
     void _device_dealloc(void)
@@ -163,7 +163,7 @@ class host_memory : private to_be_allocated_memory<Base>
 public:
     host_memory() = default;
 
-    host_memory(const std::size_t size, const std::size_t alignment = 0)
+    host_memory(const std::size_t size, const std::size_t /* alignment */ = 0)
     {
         this->set_size(size);
         this->_host_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE);
@@ -209,7 +209,7 @@ class host_device_memory : private to_be_allocated_memory<Base>
 public:
     host_device_memory() = default;
 
-    host_device_memory(const std::size_t size, const std::size_t alignment = 0)
+    host_device_memory(const std::size_t size, const std::size_t /* alignment */ = 0)
     {
         this->set_size(size);
         this->_mirror_alloc(MIMALLOC_SEGMENT_ALIGNED_SIZE, size);
